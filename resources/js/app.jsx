@@ -2,7 +2,7 @@ import { createInertiaApp } from '@inertiajs/react';
 import { createRoot } from 'react-dom/client';
 
 createInertiaApp({
-    title: (title) => (title ? `${title} - SIGAP Vidatra` : 'SIGAP Vidatra'),
+    title: (title) => (title ? `${title} - Folder Kerja SPI` : 'Folder Kerja SPI'),
     resolve: (name) => {
         const pages = import.meta.glob('./pages/**/*.jsx', { eager: true });
         return pages[`./pages/${name}.jsx`];

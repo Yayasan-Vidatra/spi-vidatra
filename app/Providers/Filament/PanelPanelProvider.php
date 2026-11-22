@@ -28,6 +28,7 @@ class PanelPanelProvider extends PanelProvider
             ->id('panel')
             ->path('panel')
             ->login()
+            ->brandName('Folder Kerja SPI')
             ->colors([
                 'primary' => Color::Amber,
             ])
