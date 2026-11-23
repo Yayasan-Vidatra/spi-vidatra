@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Assignment;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -44,6 +45,9 @@ class HandleInertiaRequests extends Middleware
                     'name' => $user->name,
                     'email' => $user->email,
                     'role' => $user->role?->name,
+                ],
+                'can' => [
+                    'viewAssignments' => (bool) $user?->can('viewAny', Assignment::class),
                 ],
             ],
         ];

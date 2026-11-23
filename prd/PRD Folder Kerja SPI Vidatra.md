@@ -209,7 +209,7 @@ Acuan: F, UC, dan nomor bagian dari Rancangan r0; R dari Daftar Revisi r1.
 | US-05 | F-03, UC-03, Bagian 9.1 | H-04, H-05 | Demo 1 | Belum mulai |  |
 | US-06 | UC-04 | H-05 | Demo 1 | Belum mulai |  |
 | US-07 | F-03, F-07 | H-05 | Demo 1 | Belum mulai |  |
-| US-08 | UC-13 | H-04 | Demo 1 | Belum mulai |  |
+| US-08 | UC-13 | H-04 | Demo 1 | Belum mulai | Cabut akses Peninjau Tamu menyusul fitur berbagi (US-19) |
 | US-09 | F-04, Bagian 6.4 | H-05 | Demo 1 | Belum mulai |  |
 | US-10 | F-05 | H-06 | Demo 1 | Belum mulai |  |
 | US-11 | F-04, Bagian 6.2 | H-06 | Demo 1 | Belum mulai |  |
@@ -225,7 +225,7 @@ Acuan: F, UC, dan nomor bagian dari Rancangan r0; R dari Daftar Revisi r1.
 | US-21 | UC-11, R7 | H-10 | Demo 2 | Belum mulai |  |
 | US-22 | R3 | H-09, H-12 | Serah terima | Belum mulai |  |
 | US-23 | R3 | — | Serah terima | Belum mulai |  |
-| US-24 | F-09, Bagian 6.7, R3 | H-11 | Serah terima | Belum mulai |  |
+| US-24 | F-09, Bagian 6.7, R3 | H-11 | Serah terima | Belum mulai | Tabel audit_logs dan pencatatan dasar berantai hash sudah dibuat di M2; UI log dan verifikasi rantai menyusul |
 | US-25 | Bagian 6.7, R3 | — | Serah terima | Belum mulai |  |
 | US-26 | UC-12 | H-11 | Serah terima | Belum mulai |  |
 | US-27 | R3 | H-11 | Serah terima | Belum mulai |  |
@@ -252,6 +252,7 @@ Setiap perbedaan dari Rancangan r0 dicatat di sini dan disetujui sebelum dikerja
 | 2026-11-23 | US-21 | Pengurus Yayasan hanya melihat laporan final, tanpa unduh (R7) | Keputusan pimpinan | Pak Randy |
 | 2026-11-23 | NF-08 | VPS dipakai bersama SIGAP, paket L untuk uji coba, upgrade ke XL bila perlu (R8) | Biaya awal lebih rendah; upgrade Rumahweb pro-rata tanpa migrasi data | Pak Randy |
 | 2026-11-23 | US-22 | Perintah bootstrap akun:tetapkan-peran untuk Super Admin dan Dewan Pengawas pertama, di luar alur persetujuan | Belum ada Dewan Pengawas untuk menyetujui saat sistem pertama dipasang; hanya bisa dijalankan sekali per peran lewat SSH | (menunggu persetujuan) |
+| 2026-11-23 | US-22 | DemoAccountSeeder menetapkan peran akun uji dari DEMO_ACCOUNTS di luar alur persetujuan, kecuali menetapkan atau mengubah peran super-admin; jalur sementara khusus non-produksi (hanya APP_ENV local/staging, menolak di production), setiap penetapan tercatat di audit_logs | Uji coba M2 butuh akun Auditor SPI sebelum alur persetujuan peran (US-22) selesai; dihapus setelah US-22 selesai | (menunggu persetujuan) |
 
 ## 9. Asumsi dan Pertanyaan Terbuka
 

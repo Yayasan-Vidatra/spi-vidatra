@@ -1,8 +1,13 @@
 <?php
 
+use App\Http\Controllers\AssignmentClosureController;
+use App\Http\Controllers\AssignmentController;
+use App\Http\Controllers\AssignmentMemberController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\GoogleController;
 use App\Http\Controllers\ConfidentialityStatementController;
+use App\Http\Controllers\FolderArchiveController;
+use App\Http\Controllers\FolderController;
 use App\Http\Controllers\TwoFactorChallengeController;
 use App\Http\Controllers\TwoFactorRecoveryCodeController;
 use App\Http\Controllers\TwoFactorSetupController;
@@ -50,6 +55,31 @@ Route::middleware(['auth', EnsureAccountHasAccess::class])->group(function () {
 
         Route::middleware(EnsureConfidentialityStatementAccepted::class)->group(function () {
             Route::inertia('/dasbor', 'Dasbor')->name('dasbor');
+
+            Route::get('/penugasan', [AssignmentController::class, 'index'])->name('penugasan.index');
+            Route::get('/penugasan/buat', [AssignmentController::class, 'create'])->name('penugasan.create');
+            Route::post('/penugasan', [AssignmentController::class, 'store'])->name('penugasan.store');
+            Route::get('/penugasan/{assignment}', [AssignmentController::class, 'show'])
+                ->whereNumber('assignment')
+                ->name('penugasan.show');
+
+            // Scoped binding: auditor atau folder dari penugasan lain menghasilkan 404.
+            Route::prefix('penugasan/{assignment}')
+                ->whereNumber('assignment')
+                ->name('penugasan.')
+                ->scopeBindings()
+                ->group(function () {
+                    Route::post('/penutupan', [AssignmentClosureController::class, 'store'])->name('penutupan.store');
+                    Route::delete('/penutupan', [AssignmentClosureController::class, 'destroy'])->name('penutupan.destroy');
+
+                    Route::post('/auditor', [AssignmentMemberController::class, 'store'])->name('auditor.store');
+                    Route::patch('/auditor/{member}', [AssignmentMemberController::class, 'update'])->name('auditor.update');
+                    Route::delete('/auditor/{member}', [AssignmentMemberController::class, 'destroy'])->name('auditor.destroy');
+
+                    Route::post('/folder', [FolderController::class, 'store'])->name('folder.store');
+                    Route::patch('/folder/{folder}', [FolderController::class, 'update'])->name('folder.update');
+                    Route::post('/folder/{folder}/arsip', [FolderArchiveController::class, 'store'])->name('folder.arsip.store');
+                });
         });
     });
 });
