@@ -2,20 +2,42 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\RoleSlug;
 use Database\Factories\UserFactory;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password'])]
-#[Hidden(['password', 'remember_token'])]
-class User extends Authenticatable
+/**
+ * Pengguna yang masuk lewat Google. `role_id` sengaja tidak fillable:
+ * perubahan peran melewati alur persetujuan (US-22).
+ */
+#[Fillable(['name', 'email', 'google_id'])]
+#[Hidden(['two_factor_secret', 'two_factor_recovery_codes', 'two_factor_last_used_timestep'])]
+class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
+
+    /**
+     * Akun tidak memakai remember-me agar batas sesi tidak aktif (US-04) tidak terlewati.
+     *
+     * @var string
+     */
+    protected $rememberTokenName = '';
+
+    /**
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'is_active' => true,
+    ];
 
     /**
      * Get the attributes that should be cast.
@@ -26,7 +48,58 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
-            'password' => 'hashed',
+            'is_active' => 'boolean',
+            'last_login_at' => 'datetime',
+            'two_factor_secret' => 'encrypted',
+            'two_factor_recovery_codes' => 'encrypted:array',
+            'two_factor_confirmed_at' => 'datetime',
+            'two_factor_last_used_timestep' => 'integer',
         ];
+    }
+
+    /**
+     * @return BelongsTo<Role, $this>
+     */
+    public function role(): BelongsTo
+    {
+        return $this->belongsTo(Role::class);
+    }
+
+    /**
+     * @return HasMany<ConfidentialityAcceptance, $this>
+     */
+    public function confidentialityAcceptances(): HasMany
+    {
+        return $this->hasMany(ConfidentialityAcceptance::class);
+    }
+
+    public function hasRole(RoleSlug $roleSlug): bool
+    {
+        return $this->role?->slug === $roleSlug;
+    }
+
+    public function canSignIn(): bool
+    {
+        return $this->is_active && $this->role_id !== null;
+    }
+
+    public function requiresTwoFactor(): bool
+    {
+        return (bool) $this->role?->requires_two_factor;
+    }
+
+    public function hasConfirmedTwoFactor(): bool
+    {
+        return $this->two_factor_confirmed_at !== null;
+    }
+
+    public function hasAcceptedConfidentialityStatement(): bool
+    {
+        return $this->confidentialityAcceptances()->exists();
+    }
+
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return $this->hasRole(RoleSlug::SuperAdmin);
     }
 }
