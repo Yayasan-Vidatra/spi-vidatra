@@ -202,6 +202,24 @@ php artisan migrate:fresh
 
 > **Warning:** `migrate:fresh` akan menghapus seluruh tabel dalam database. Jangan gunakan command ini pada database production kecuali memang memahami konsekuensinya.
 
+### 4. Test Database
+
+Test memakai database MySQL terpisah bernama `spi_vidatra_test`, bukan SQLite, agar batasan MySQL (misalnya panjang nama index maksimal 64 karakter) ikut teruji. Konfigurasinya sudah diatur di `phpunit.xml` (`root` tanpa password di `127.0.0.1:3306`), jadi tidak bergantung pada `.env`.
+
+Buat database test sekali saja:
+
+```sql
+CREATE DATABASE spi_vidatra_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+Lalu jalankan test:
+
+```bash
+php artisan test --compact
+```
+
+> **Penting:** MySQL di Laragon harus menyala saat `php artisan test` dijalankan. Test menjalankan `migrate:fresh` di `spi_vidatra_test` sehingga seluruh tabelnya dihapus dan dibuat ulang; jangan arahkan `DB_DATABASE` di `phpunit.xml` ke database development.
+
 ### Database Workflow
 
 ```text

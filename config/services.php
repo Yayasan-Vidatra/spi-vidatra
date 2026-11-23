@@ -39,6 +39,9 @@ return [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
         'redirect' => env('GOOGLE_REDIRECT_URI'),
+
+        // Hanya akun Google Workspace yayasan yang boleh masuk (US-01).
+        'allowed_domain' => 'vidatra.sch.id',
     ],
 
 ];

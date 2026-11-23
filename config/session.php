@@ -32,7 +32,9 @@ return [
     |
     */
 
-    'lifetime' => (int) env('SESSION_LIFETIME', 120),
+    // US-04: sesi habis setelah 30 menit tidak aktif. Sengaja tidak dibaca dari .env
+    // agar batas ini tidak bisa berubah per server.
+    'lifetime' => 30,
 
     'expire_on_close' => env('SESSION_EXPIRE_ON_CLOSE', false),
 

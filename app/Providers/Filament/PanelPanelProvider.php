@@ -2,8 +2,10 @@
 
 namespace App\Providers\Filament;
 
+use App\Http\Middleware\EnsureAccountHasAccess;
+use App\Http\Middleware\EnsureConfidentialityStatementAccepted;
+use App\Http\Middleware\EnsureTwoFactorIsVerified;
 use Filament\Http\Middleware\Authenticate;
-use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Pages\Dashboard;
@@ -19,6 +21,11 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
+/**
+ * Panel tidak punya halaman login sendiri: tamu diarahkan ke login Google aplikasi
+ * (US-01), lalu melewati gerbang akses, 2FA, dan pernyataan kerahasiaan yang sama.
+ * AuthenticateSession tidak dipakai karena bergantung pada hash kata sandi lokal.
+ */
 class PanelPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
@@ -27,7 +34,6 @@ class PanelPanelProvider extends PanelProvider
             ->default()
             ->id('panel')
             ->path('panel')
-            ->login()
             ->brandName('Folder Kerja SPI')
             ->colors([
                 'primary' => Color::Amber,
@@ -46,7 +52,6 @@ class PanelPanelProvider extends PanelProvider
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,
-                AuthenticateSession::class,
                 ShareErrorsFromSession::class,
                 PreventRequestForgery::class,
                 SubstituteBindings::class,
@@ -55,6 +60,9 @@ class PanelPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+                EnsureAccountHasAccess::class,
+                EnsureTwoFactorIsVerified::class,
+                EnsureConfidentialityStatementAccepted::class,
             ]);
     }
 }

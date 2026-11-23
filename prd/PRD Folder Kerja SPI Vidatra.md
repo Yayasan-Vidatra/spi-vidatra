@@ -204,8 +204,8 @@ Acuan: F, UC, dan nomor bagian dari Rancangan r0; R dari Daftar Revisi r1.
 | --- | --- | --- | --- | --- | --- |
 | US-01 | F-01, UC-01, R4 | H-01 | Demo 1 | Belum mulai |  |
 | US-02 | Bagian 6.1, R3 | H-02 | Demo 1 | Belum mulai |  |
-| US-03 | Bagian 6.8 | H-02 | Demo 1 | Belum mulai |  |
-| US-04 | Bagian 6.1 | H-12 | Demo 1 | Belum mulai |  |
+| US-03 | Bagian 6.8 | H-02 | Demo 1 | Belum mulai | Penyuntingan teks via H-13 menyusul di US-29 |
+| US-04 | Bagian 6.1 | H-12 | Demo 1 | Belum mulai | Cabut sesi dipindah ke Serah terima (H-12) |
 | US-05 | F-03, UC-03, Bagian 9.1 | H-04, H-05 | Demo 1 | Belum mulai |  |
 | US-06 | UC-04 | H-05 | Demo 1 | Belum mulai |  |
 | US-07 | F-03, F-07 | H-05 | Demo 1 | Belum mulai |  |
@@ -251,6 +251,7 @@ Setiap perbedaan dari Rancangan r0 dicatat di sini dan disetujui sebelum dikerja
 | 2026-11-23 | NF-06 | Log audit disimpan 10 tahun, bukan 5 tahun (R6) | Mengikuti draf Piagam SPI | Pak Randy |
 | 2026-11-23 | US-21 | Pengurus Yayasan hanya melihat laporan final, tanpa unduh (R7) | Keputusan pimpinan | Pak Randy |
 | 2026-11-23 | NF-08 | VPS dipakai bersama SIGAP, paket L untuk uji coba, upgrade ke XL bila perlu (R8) | Biaya awal lebih rendah; upgrade Rumahweb pro-rata tanpa migrasi data | Pak Randy |
+| 2026-11-23 | US-22 | Perintah bootstrap akun:tetapkan-peran untuk Super Admin dan Dewan Pengawas pertama, di luar alur persetujuan | Belum ada Dewan Pengawas untuk menyetujui saat sistem pertama dipasang; hanya bisa dijalankan sekali per peran lewat SSH | (menunggu persetujuan) |
 
 ## 9. Asumsi dan Pertanyaan Terbuka
 
