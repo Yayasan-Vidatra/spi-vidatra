@@ -1,17 +1,17 @@
-# Laravel React Starter
+# Folder Kerja SPI Vidatra
 
-Starter project untuk membangun aplikasi web menggunakan Laravel, React, Vite, dan Tailwind CSS.
+Ruang kerja dokumen tertutup untuk Satuan Pengawas Internal (SPI) Yayasan Vidatra, di `spi.vidatra.sch.id`. Dipakai untuk menyimpan dokumen penugasan audit, meminta dokumen ke unit (SD YPVDP, SMP YPVDP, SMA YPVDP, Pelaksana Harian), membagikan laporan sesuai peran, dan mencatat setiap akses di log audit.
 
-Starter ini digunakan sebagai fondasi awal untuk berbagai aplikasi web, seperti:
+Login hanya dengan akun Google Workspace `@vidatra.sch.id`.
 
-- Sistem informasi
-- Dashboard internal
-- Inventory
-- Absensi
-- Perpustakaan
-- Administrasi
-- Website sekolah
-- Aplikasi CRUD
+> Alamat aplikasi ini tidak dipublikasikan dan tidak ditautkan dari website yayasan.
+
+## Dokumen Acuan
+
+- [PRD Folder Kerja SPI Vidatra](prd/PRD%20Folder%20Kerja%20SPI%20Vidatra.md): user story, kriteria penerimaan, rilis, matriks keterlacakan, dan log deviasi.
+- Rancangan Website Folder Kerja SPI (r0) dan Daftar Revisi Rancangan (r1): disimpan di Claude Docs yayasan.
+
+Project ini dibangun dari [laravel-react-starter](https://github.com/ssblthfnd/laravel-react-starter). Panduan di bawah mengikuti starter tersebut.
 
 ## Tech Stack
 
@@ -22,7 +22,8 @@ Starter ini digunakan sebagai fondasi awal untuk berbagai aplikasi web, seperti:
 | React | 19 |
 | Vite | 8 |
 | Tailwind CSS | 4 |
-| React Router | Installed version |
+| Inertia.js | 3 |
+| Filament | 5 |
 | MySQL | 8.x / compatible |
 | Node.js | 22+ |
 | Composer | 2.x |
@@ -41,20 +42,20 @@ Pastikan software berikut sudah terinstall:
 
 ## Clone Repository
 
-Clone repository starter ke komputer lokal.
+Clone repository ke komputer lokal.
 
 ### 1. Clone repository
 
 Buka terminal, lalu jalankan:
 
 ```bash
-git clone https://github.com/ssblthfnd/laravel-react-starter.git <NAMA APLIKASI>
+git clone https://github.com/Yayasan-Vidatra/spi-vidatra.git
 ```
 
 ### 2. Masuk ke folder project
 
 ```bash
-cd laravel-react-starter
+cd spi-vidatra
 ```
 
 ### 3. Install dependency Laravel
@@ -71,7 +72,7 @@ Command ini akan menginstall seluruh dependency PHP yang dibutuhkan oleh Laravel
 npm install
 ```
 
-Command ini akan menginstall seluruh dependency JavaScript yang dibutuhkan oleh React, Vite, Tailwind CSS, dan React Router berdasarkan file `package.json`.
+Command ini akan menginstall seluruh dependency JavaScript yang dibutuhkan oleh React, Inertia.js, Vite, dan Tailwind CSS berdasarkan file `package.json`.
 
 Setelah proses selesai, project siap untuk dikonfigurasi.
 
@@ -146,7 +147,7 @@ Contoh konfigurasi untuk development lokal:
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
-DB_DATABASE=laravel_starter
+DB_DATABASE=spi_vidatra
 DB_USERNAME=root
 DB_PASSWORD=
 ```
@@ -164,7 +165,7 @@ Buat database baru melalui MySQL, phpMyAdmin, atau database management tool lain
 Contoh nama database:
 
 ```text
-laravel_starter
+spi_vidatra
 ```
 
 Nama database harus sama dengan nilai `DB_DATABASE` di file `.env`.
@@ -172,7 +173,7 @@ Nama database harus sama dengan nilai `DB_DATABASE` di file `.env`.
 Contoh:
 
 ```env
-DB_DATABASE=laravel_starter
+DB_DATABASE=spi_vidatra
 ```
 
 ### 2. Run Migration
@@ -966,141 +967,3 @@ git push
 ```
 
 > **Tip:** Hindari melakukan commit langsung ke `main` ketika mengembangkan fitur besar. Gunakan feature branch agar perubahan dapat diuji dan ditinjau terlebih dahulu.
-
-## Create a New Project from This Starter
-
-Repository ini dapat digunakan sebagai fondasi untuk membuat berbagai aplikasi baru.
-
-Contoh project:
-
-```text
-laravel-react-starter
-        ↓
-        ├── inventory-ypvdp
-        ├── attendance-ypvdp
-        ├── library-ypvdp
-        └── school-information-system
-```
-
-### 1. Clone the Starter
-
-Clone repository starter:
-
-```bash
-git clone https://github.com/ssblthfnd/laravel-react-starter.git nama-project
-```
-
-Contoh:
-
-```bash
-git clone https://github.com/ssblthfnd/laravel-react-starter.git inventory-ypvdp
-```
-
-### 2. Enter the Project Directory
-
-```bash
-cd inventory-ypvdp
-```
-
-### 3. Remove the Starter Git History
-
-Project baru tidak boleh tetap terhubung dengan repository starter.
-
-Hapus folder `.git`:
-
-```bash
-rmdir /s /q .git
-```
-
-> **Windows:** Command di atas digunakan pada Command Prompt atau terminal yang mendukung command tersebut. Jika menggunakan PowerShell, gunakan command yang sesuai untuk menghapus folder `.git`.
-
-### 4. Initialize a New Git Repository
-
-Buat repository Git baru:
-
-```bash
-git init
-```
-
-Set branch utama menjadi `main`:
-
-```bash
-git branch -M main
-```
-
-### 5. Create a New GitHub Repository
-
-Buat repository baru di GitHub dengan nama project yang sesuai.
-
-Contoh:
-
-```text
-inventory-ypvdp
-```
-
-Jangan gunakan repository starter sebagai remote project baru.
-
-### 6. Connect the New Repository
-
-Tambahkan repository GitHub baru sebagai remote:
-
-```bash
-git remote add origin https://github.com/USERNAME/REPOSITORY.git
-```
-
-Contoh:
-
-```bash
-git remote add origin https://github.com/USERNAME/inventory-ypvdp.git
-```
-
-### 7. Create the First Commit
-
-Tambahkan seluruh file:
-
-```bash
-git add .
-```
-
-Buat commit pertama:
-
-```bash
-git commit -m "chore: initialize project from starter"
-```
-
-### 8. Push to GitHub
-
-```bash
-git push -u origin main
-```
-
-Project baru sekarang memiliki repository GitHub sendiri.
-
-### Complete Workflow
-
-```text
-laravel-react-starter
-        ↓
-git clone
-        ↓
-nama-project
-        ↓
-Remove .git
-        ↓
-git init
-        ↓
-Create new GitHub repository
-        ↓
-git remote add origin
-        ↓
-git add .
-        ↓
-git commit
-        ↓
-git push
-        ↓
-New Project Repository
-```
-
-> **Important:** Setelah `.git` dari starter dihapus dan repository baru dibuat, project tersebut sudah berdiri sendiri. Perubahan pada project baru tidak akan mengubah repository `laravel-react-starter`.
-
