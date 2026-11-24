@@ -4,17 +4,22 @@ namespace Tests\Feature\Http\Controllers;
 
 use App\Enums\AuditAction;
 use App\Enums\RoleSlug;
+use App\Jobs\SyncFileEncryption;
 use App\Models\Assignment;
+use App\Models\File;
 use App\Models\Folder;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Tests\Concerns\AssertsAuditLog;
+use Tests\Concerns\InteractsWithFiles;
 use Tests\Concerns\InteractsWithRoles;
 use Tests\TestCase;
 
 class FolderControllerTest extends TestCase
 {
     use AssertsAuditLog;
+    use InteractsWithFiles;
     use InteractsWithRoles;
     use LazilyRefreshDatabase;
 
@@ -264,5 +269,97 @@ class FolderControllerTest extends TestCase
 
         $response->assertNotFound();
         $this->assertSame('Milik Lain', $otherFolder->fresh()->name);
+    }
+
+    public function test_labelling_a_folder_rahasia_encrypts_the_files_beneath_it(): void
+    {
+        $this->fakeFileDisk();
+        [$auditor, $assignment, $standardFolder] = $this->auditorWithStandardFolder(canAccessConfidential: true);
+        $child = Folder::factory()->childOf($standardFolder)->create();
+        $file = File::factory()->for($child)->withVersion()->create();
+        $this->putVersionContent($file->currentVersion, 'isi berkas');
+
+        $this->actingAsVerified($auditor)->patch(route('penugasan.folder.update', [$assignment, $standardFolder]), ['classification' => 'rahasia']);
+
+        $this->assertTrue($file->currentVersion->fresh()->is_encrypted);
+    }
+
+    public function test_moving_a_folder_into_a_rahasia_parent_schedules_encryption_of_its_files(): void
+    {
+        Queue::fake([SyncFileEncryption::class]);
+        [$auditor, $assignment, $standardFolder] = $this->auditorWithStandardFolder(canAccessConfidential: true);
+        $folder = Folder::factory()->childOf($standardFolder)->create();
+        $file = File::factory()->for(Folder::factory()->childOf($folder)->create())->withVersion()->create();
+        $confidentialFolder = Folder::factory()->for($assignment)->confidential()->create();
+
+        $this->actingAsVerified($auditor)->patch(route('penugasan.folder.update', [$assignment, $folder]), ['parent_id' => $confidentialFolder->id]);
+
+        Queue::assertPushed(SyncFileEncryption::class, fn (SyncFileEncryption $job): bool => $job->file->is($file));
+    }
+
+    public function test_moving_a_folder_between_non_rahasia_parents_does_not_re_encrypt(): void
+    {
+        Queue::fake([SyncFileEncryption::class]);
+        [$auditor, $assignment, $standardFolder] = $this->auditorWithStandardFolder();
+        $folder = Folder::factory()->childOf($standardFolder)->create();
+        File::factory()->for($folder)->withVersion()->create();
+        $target = Folder::factory()->for($assignment)->create();
+
+        $this->actingAsVerified($auditor)->patch(route('penugasan.folder.update', [$assignment, $folder]), ['parent_id' => $target->id]);
+
+        $this->assertSame($target->id, $folder->fresh()->parent_id);
+        Queue::assertNotPushed(SyncFileEncryption::class);
+    }
+
+    public function test_labelling_a_folder_with_files_rahasia_is_refused_without_the_encryption_key(): void
+    {
+        $this->withoutEncryptionKey();
+        [$auditor, $assignment, $standardFolder] = $this->auditorWithStandardFolder(canAccessConfidential: true);
+        File::factory()->for($standardFolder)->withVersion()->create();
+
+        $response = $this->actingAsVerified($auditor)->patch(route('penugasan.folder.update', [$assignment, $standardFolder]), ['classification' => 'rahasia']);
+
+        $response->assertSessionHasErrors(['classification' => 'Kunci enkripsi berkas Rahasia belum terpasang di server. Hubungi Admin IT.']);
+        $this->assertSame('internal', $standardFolder->fresh()->classification->value);
+    }
+
+    public function test_labelling_an_empty_folder_rahasia_works_without_the_encryption_key(): void
+    {
+        $this->withoutEncryptionKey();
+        [$auditor, $assignment, $standardFolder] = $this->auditorWithStandardFolder(canAccessConfidential: true);
+
+        $this->actingAsVerified($auditor)->patch(route('penugasan.folder.update', [$assignment, $standardFolder]), ['classification' => 'rahasia']);
+
+        $this->assertSame('rahasia', $standardFolder->fresh()->classification->value);
+    }
+
+    public function test_moving_a_folder_with_files_into_a_rahasia_parent_is_refused_without_the_encryption_key(): void
+    {
+        $this->withoutEncryptionKey();
+        [$auditor, $assignment, $standardFolder] = $this->auditorWithStandardFolder(canAccessConfidential: true);
+        $folder = Folder::factory()->childOf($standardFolder)->create();
+        File::factory()->for(Folder::factory()->childOf($folder)->create())->withVersion()->create();
+        $confidentialFolder = Folder::factory()->for($assignment)->confidential()->create();
+
+        $response = $this->actingAsVerified($auditor)->patch(route('penugasan.folder.update', [$assignment, $folder]), ['parent_id' => $confidentialFolder->id]);
+
+        $response->assertSessionHasErrors(['parent_id' => 'Kunci enkripsi berkas Rahasia belum terpasang di server. Hubungi Admin IT.']);
+        $this->assertSame($standardFolder->id, $folder->fresh()->parent_id);
+    }
+
+    public function test_moving_a_folder_with_files_out_of_a_rahasia_parent_is_refused_without_the_encryption_key(): void
+    {
+        $this->withoutEncryptionKey();
+        $dewanPengawas = $this->userWithRole(RoleSlug::DewanPengawas);
+        $assignment = Assignment::factory()->create();
+        $confidentialFolder = Folder::factory()->for($assignment)->confidential()->create();
+        $folder = Folder::factory()->childOf($confidentialFolder)->create();
+        File::factory()->for($folder)->withVersion(versionAttributes: ['is_encrypted' => true])->create();
+        $target = Folder::factory()->for($assignment)->create();
+
+        $response = $this->actingAsVerified($dewanPengawas)->patch(route('penugasan.folder.update', [$assignment, $folder]), ['parent_id' => $target->id]);
+
+        $response->assertSessionHasErrors(['parent_id' => 'Kunci enkripsi berkas Rahasia belum terpasang di server. Hubungi Admin IT.']);
+        $this->assertSame($confidentialFolder->id, $folder->fresh()->parent_id);
     }
 }

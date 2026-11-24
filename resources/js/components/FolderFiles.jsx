@@ -1,5 +1,6 @@
 import { Link } from '@inertiajs/react';
 import ClassificationBadge from './ClassificationBadge';
+import EncryptionStatusBadge from './EncryptionStatusBadge';
 import FileDropzone from './FileDropzone';
 import { formatBytes, formatDateTime } from './fileFormat';
 import ScanStatusBadge from './ScanStatusBadge';
@@ -32,7 +33,7 @@ export default function FolderFiles({ folder, uploadRules }) {
                                 <th className="py-2 pr-3 font-medium">Versi</th>
                                 <th className="py-2 pr-3 font-medium">Ukuran</th>
                                 <th className="py-2 pr-3 font-medium">Label</th>
-                                <th className="py-2 pr-3 font-medium">Pindai</th>
+                                <th className="py-2 pr-3 font-medium">Status</th>
                                 <th className="py-2 pr-3 font-medium">Pengunggah</th>
                                 <th className="py-2 font-medium">Waktu</th>
                             </tr>
@@ -51,7 +52,10 @@ export default function FolderFiles({ folder, uploadRules }) {
                                         <ClassificationBadge value={file.classification} label={file.classification_label} />
                                     </td>
                                     <td className="py-2 pr-3">
-                                        <ScanStatusBadge value={file.scan_status} label={file.scan_status_label} />
+                                        <div className="flex flex-wrap gap-1">
+                                            <ScanStatusBadge value={file.scan_status} label={file.scan_status_label} />
+                                            <EncryptionStatusBadge value={file.encryption_status} label={file.encryption_status_label} />
+                                        </div>
                                     </td>
                                     <td className="py-2 pr-3">{file.uploader}</td>
                                     <td className="py-2 whitespace-nowrap text-gray-600">{formatDateTime(file.uploaded_at)}</td>

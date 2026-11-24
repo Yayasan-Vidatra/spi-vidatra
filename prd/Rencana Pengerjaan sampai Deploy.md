@@ -30,10 +30,17 @@ Aturan yang berlaku untuk semua langkah:
 
 ## Langkah 1: Enkripsi Rahasia, tempat sampah, pencarian (US-12 sampai US-14)
 
-- **US-12:** isi berkas berlabel Rahasia dienkripsi saat disimpan (AES-256-GCM, kunci dari env terpisah dari `APP_KEY` dan tidak ikut cadangan). Mengubah label ke atau dari Rahasia mengenkripsi atau mendekripsi ulang semua versi, di job antrean, tercatat di log. Pemindaian antivirus tetap berjalan pada isi asli sebelum dienkripsi. Super Admin tidak pernah bisa membuka isi folder atau berkas Rahasia.
-- **US-13:** hapus berkas memindahkannya ke Tempat Sampah (H-14) selama 30 hari. Auditor hanya bisa menghapus berkas yang ia unggah; hanya Dewan Pengawas yang memulihkan atau menghapus permanen. Penghapusan permanen otomatis setelah 30 hari lewat scheduler. Semua tercatat di log.
+- **US-12:** isi berkas berlabel Rahasia, dan semua berkas di bawah folder Rahasia, dienkripsi saat disimpan (AES-256-GCM, kunci dari berkas terpisah dari `APP_KEY` dan tidak ikut cadangan). Mengubah label berkas atau folder ke atau dari Rahasia, atau memindah folder ke dalam atau keluar dari induk Rahasia, mengenkripsi atau mendekripsi ulang semua versi di job antrean, tercatat di log. Isi Rahasia dienkripsi langsung saat unggah; job pindai mendekripsi sambil mengalirkan isi asli ke clamd, sehingga clamd memindai isi asli tanpa salinan polos di disk. Super Admin tidak pernah bisa membuka isi folder atau berkas Rahasia.
+- **US-13:** hapus berkas memindahkannya ke Tempat Sampah (H-14) selama 30 hari. Auditor hanya bisa menghapus berkas yang semua versinya ia unggah; hanya Dewan Pengawas yang memulihkan atau menghapus permanen. Penghapusan permanen otomatis setelah 30 hari lewat scheduler. Semua tercatat di log.
 - **US-14:** pencarian global di header berdasarkan nama berkas, label, unit, tahun, penugasan; hasil hanya yang boleh diakses pencari (difilter di query, bukan setelah diambil).
-- **Perlu diputuskan sebelum mulai:** di mana kunci enkripsi disimpan di server (rekomendasi: file di luar folder aplikasi, hanya bisa dibaca pengguna sistem aplikasi, dicadangkan terpisah oleh Dewan Pengawas).
+- **Keputusan (24 Nov 2026):**
+  1. Kunci di server: `/etc/spi-vidatra/berkas-rahasia.key`, milik pengguna `spi`, hak 0400, salinannya dipegang Dewan Pengawas. Lokal: `storage/berkas-rahasia.key`. Dibuat dengan `php artisan berkas:buat-kunci`.
+  2. Yang dienkripsi: berkas berlabel Rahasia dan semua berkas di bawah folder Rahasia, termasuk lewat ubah label folder dan pindah folder. Ini memperketat PRD, jadi cukup dicatat di matriks US-12, tanpa log deviasi.
+  3. Isi Rahasia dienkripsi langsung saat unggah; pemindaian mendekripsi sambil mengalirkan isi asli ke clamd.
+  4. Auditor hanya bisa menghapus berkas jika semua versinya diunggah olehnya.
+  5. Auditor melihat H-14 untuk penugasannya saja (aturan Rahasia sama), tanpa pulihkan atau hapus permanen. Sesuai Peta Halaman PRD.
+  6. Unggahan baru dengan nama sama seperti berkas di Tempat Sampah menjadi berkas terpisah (nama unik hanya untuk berkas aktif). Saat pulihkan bentrok nama, berkas dipulihkan dengan akhiran "(dipulihkan YYYY-MM-DD)".
+  - Tambahan: tanpa kunci, unggah dan buka berkas Rahasia, ubah label ke atau dari Rahasia, pindah folder ke dalam atau keluar dari induk Rahasia, serta pulihkan versi berkas Rahasia ditolak, agar job enkripsi ulang tidak gagal di tengah.
 
 ## Langkah 2: Unit pengguna dan permintaan dokumen (US-15 sampai US-18)
 
@@ -76,7 +83,7 @@ Setelah Langkah 3: **Demo 2** ke pimpinan (lokal atau staging).
 - **Keamanan:** Content-Security-Policy, HSTS, X-Frame-Options, Referrer-Policy lewat middleware; halaman galat 403/404/419/429/500 berbahasa Indonesia tanpa detail teknis; cek `APP_DEBUG=false` di produksi; `composer audit` dan `npm audit` bersih.
 - **Cadangan (NF-04):** cadangan harian basis data dan berkas, terenkripsi, ke luar VPS, retensi 30 hari; perintah uji pulihkan; kunci enkripsi berkas Rahasia tidak ikut cadangan. **Perlu diputuskan:** tujuan cadangan (rekomendasi: Google Drive Shared Drive yayasan lewat mekanisme yang sama dengan Langkah 4, atau object storage) dan apakah memakai paket (`spatie/laravel-backup`) atau skrip sendiri.
 - **CI:** GitHub Actions dengan service MySQL 8 menjalankan seluruh test, Pint (`--test`), dan `npm run build` di setiap PR.
-- **Skrip deploy:** folder `deploy/` berisi skrip pemasangan untuk Ubuntu 24.04 yang **berbagi server dengan SIGAP** (srv1.vidatra.sch.id): pengguna sistem `spi`, basis data dan pengguna MySQL sendiri, pool PHP-FPM sendiri, vhost Nginx `spi.vidatra.sch.id` dengan `client_max_body_size 64M`, Let's Encrypt, Supervisor untuk queue worker, cron untuk scheduler, `robots.txt` dan header noindex. Skrip tidak boleh mengubah konfigurasi SIGAP; bagian bersama (PHP, MySQL, Redis, ClamAV dengan StreamMaxLength 105M) hanya diperiksa, dan dipasang bila belum ada. Skrip pembaruan (pull, composer install --no-dev, migrate --force, build, restart worker) terpisah dari skrip pemasangan.
+- **Skrip deploy:** folder `deploy/` berisi skrip pemasangan untuk Ubuntu 24.04 yang **berbagi server dengan SIGAP** (srv1.vidatra.sch.id): pengguna sistem `spi`, basis data dan pengguna MySQL sendiri, pool PHP-FPM sendiri, vhost Nginx `spi.vidatra.sch.id` dengan `client_max_body_size 64M`, Let's Encrypt, Supervisor untuk queue worker, cron untuk scheduler, `robots.txt` dan header noindex. Skrip tidak boleh mengubah konfigurasi SIGAP; bagian bersama (PHP, MySQL, Redis, ClamAV dengan StreamMaxLength 105M) hanya diperiksa, dan dipasang bila belum ada. Skrip pembaruan (pull, composer install --no-dev, migrate --force, build, `php artisan queue:restart` wajib di setiap deploy agar worker tidak menjalankan kode lama) terpisah dari skrip pemasangan.
 - **Dokumen operasional:** README bagian Deploy dilengkapi langkah lengkap, termasuk bootstrap Super Admin dan Dewan Pengawas pertama dan tempat menyimpan kunci enkripsi.
 
 ## Langkah 7: Deploy ke VPS
@@ -93,7 +100,7 @@ Setelah Langkah 3: **Demo 2** ke pimpinan (lokal atau staging).
 
 Supaya pengerjaan tidak tertahan, keputusan berikut sebaiknya dijawab sebelum Langkah 1:
 
-- [ ] Penyimpanan kunci enkripsi berkas Rahasia di server (Langkah 1).
+- [x] Penyimpanan kunci enkripsi berkas Rahasia di server (Langkah 1).
 - [ ] Satu unit boleh punya lebih dari satu PIC (Langkah 2).
 - [ ] Cara watermark laporan untuk Pengurus (Langkah 3).
 - [ ] Cara ekspor log ke Google Drive (Langkah 4).

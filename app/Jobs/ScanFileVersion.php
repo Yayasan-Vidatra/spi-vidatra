@@ -6,6 +6,7 @@ use App\Enums\AuditAction;
 use App\Enums\ScanStatus;
 use App\Models\FileVersion;
 use App\Services\AuditLogger;
+use App\Services\FileVersionContent;
 use App\Services\Scanning\VirusScanner;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -36,7 +37,7 @@ class ScanFileVersion implements ShouldQueue
 
     public function __construct(public FileVersion $version) {}
 
-    public function handle(VirusScanner $scanner, AuditLogger $auditLogger): void
+    public function handle(VirusScanner $scanner, FileVersionContent $content, AuditLogger $auditLogger): void
     {
         $version = $this->version->fresh(['file']);
 
@@ -44,16 +45,8 @@ class ScanFileVersion implements ShouldQueue
             return;
         }
 
-        $disk = Storage::disk(config('berkas.disk'));
-        $stream = $disk->readStream($version->storage_path);
-
-        try {
-            $result = $scanner->scan($stream);
-        } finally {
-            if (is_resource($stream)) {
-                fclose($stream);
-            }
-        }
+        // Isi Rahasia didekripsi sambil dialirkan, sehingga clamd memindai isi asli tanpa salinan polos di disk.
+        $result = $scanner->scan($content->read($version));
 
         if ($result->isInfected) {
             $this->quarantine($version, $result->signature, $auditLogger);
@@ -83,14 +76,17 @@ class ScanFileVersion implements ShouldQueue
     private function quarantine(FileVersion $version, string $signature, AuditLogger $auditLogger): void
     {
         $disk = Storage::disk(config('berkas.disk'));
-        $originalPath = $version->storage_path;
-        $quarantinePath = 'karantina/'.$version->stored_name;
 
-        $disk->move($originalPath, $quarantinePath);
+        DB::transaction(function () use ($version, $signature, $auditLogger, $disk): void {
+            // Kunci baris agar lokasi simpan tidak sedang diganti job enkripsi ulang.
+            $locked = FileVersion::query()->lockForUpdate()->findOrFail($version->id);
+            $originalPath = $locked->storage_path;
+            $quarantinePath = 'karantina/'.$locked->stored_name;
 
-        try {
-            DB::transaction(function () use ($version, $signature, $quarantinePath, $auditLogger): void {
-                $version->forceFill([
+            $disk->move($originalPath, $quarantinePath);
+
+            try {
+                $locked->forceFill([
                     'scan_status' => ScanStatus::Terinfeksi,
                     'scanned_at' => now(),
                     'scan_signature' => $signature,
@@ -98,15 +94,15 @@ class ScanFileVersion implements ShouldQueue
                 ])->save();
 
                 $auditLogger->record(AuditAction::FileQuarantined, $version->file, [
-                    'version' => $version->version_number,
-                    'version_id' => $version->id,
+                    'version' => $locked->version_number,
+                    'version_id' => $locked->id,
                     'signature' => $signature,
                 ]);
-            });
-        } catch (Throwable $exception) {
-            $disk->move($quarantinePath, $originalPath);
+            } catch (Throwable $exception) {
+                $disk->move($quarantinePath, $originalPath);
 
-            throw $exception;
-        }
+                throw $exception;
+            }
+        });
     }
 }

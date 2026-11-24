@@ -9,6 +9,7 @@ use App\Http\Requests\UpdateFolderRequest;
 use App\Models\Assignment;
 use App\Models\Folder;
 use App\Services\AuditLogger;
+use App\Services\Encryption\ConfidentialFileEncryption;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -19,7 +20,10 @@ use Illuminate\Validation\ValidationException;
  */
 class FolderController extends Controller
 {
-    public function __construct(private AuditLogger $auditLogger) {}
+    public function __construct(
+        private AuditLogger $auditLogger,
+        private ConfidentialFileEncryption $encryption,
+    ) {}
 
     public function store(StoreFolderRequest $request, Assignment $assignment): RedirectResponse
     {
@@ -104,11 +108,20 @@ class FolderController extends Controller
             ]);
         }
 
+        // Masuk ke atau keluar dari induk Rahasia mengubah enkripsi berkas di dalamnya (US-12).
+        $wasConfidential = $folder->isWithinConfidential();
+        $willBeConfidential = $folder->classification === Classification::Rahasia || $target->isWithinConfidential();
+        $this->encryption->ensureKeyForFolderChange($folder, $willBeConfidential, 'parent_id');
+
         $oldParentId = $folder->parent_id;
         $folder->forceFill(['parent_id' => $target->id])->save();
         $folder->setRelation('parent', $target);
 
         $this->auditLogger->record(AuditAction::FolderMoved, $folder, ['from_parent_id' => $oldParentId, 'to_parent_id' => $target->id]);
+
+        if ($wasConfidential !== $willBeConfidential) {
+            $this->encryption->syncFolder($folder);
+        }
     }
 
     private function changeLabel(Folder $folder, Classification $classification): void
@@ -119,6 +132,10 @@ class FolderController extends Controller
 
         Gate::authorize('changeLabel', [$folder, $classification]);
 
+        $wasConfidential = $folder->isWithinConfidential();
+        $willBeConfidential = $classification === Classification::Rahasia || ($folder->parent?->isWithinConfidential() ?? false);
+        $this->encryption->ensureKeyForFolderChange($folder, $willBeConfidential, 'classification');
+
         $oldClassification = $folder->classification;
         $folder->forceFill(['classification' => $classification])->save();
 
@@ -126,6 +143,10 @@ class FolderController extends Controller
             'from' => $oldClassification->value,
             'to' => $classification->value,
         ]);
+
+        if ($wasConfidential !== $willBeConfidential) {
+            $this->encryption->syncFolder($folder);
+        }
     }
 
     private function assignmentFolder(Assignment $assignment, int $folderId): Folder

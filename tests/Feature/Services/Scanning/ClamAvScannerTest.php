@@ -31,22 +31,18 @@ class ClamAvScannerTest extends TestCase
     }
 
     /**
-     * @return resource
+     * @return list<string>
      */
-    private function streamOf(string $content)
+    private function piecesOf(string $content): array
     {
-        $stream = fopen('php://memory', 'r+');
-        fwrite($stream, $content);
-        rewind($stream);
-
-        return $stream;
+        return str_split($content, 7_000);
     }
 
     public function test_ok_reply_is_a_clean_result(): void
     {
         $scanner = new ClamAvScanner($this->fakeClamdReplying('stream: OK'), 5);
 
-        $result = $scanner->scan($this->streamOf(str_repeat('a', 20_000)));
+        $result = $scanner->scan($this->piecesOf(str_repeat('a', 20_000)));
 
         $this->assertFalse($result->isInfected);
     }
@@ -55,7 +51,7 @@ class ClamAvScannerTest extends TestCase
     {
         $scanner = new ClamAvScanner($this->fakeClamdReplying('stream: Eicar-Signature FOUND'), 5);
 
-        $result = $scanner->scan($this->streamOf('X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR'));
+        $result = $scanner->scan($this->piecesOf('X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR'));
 
         $this->assertTrue($result->isInfected);
         $this->assertSame('Eicar-Signature', $result->signature);
@@ -66,7 +62,7 @@ class ClamAvScannerTest extends TestCase
         $scanner = new ClamAvScanner($this->fakeClamdReplying('INSTREAM size limit exceeded. ERROR'), 5);
 
         $this->assertThrows(
-            fn () => $scanner->scan($this->streamOf(str_repeat('a', 20_000))),
+            fn () => $scanner->scan($this->piecesOf(str_repeat('a', 20_000))),
             ScanFailedException::class,
             'clamd: INSTREAM size limit exceeded. ERROR',
         );
@@ -76,13 +72,13 @@ class ClamAvScannerTest extends TestCase
     {
         $scanner = new ClamAvScanner($this->fakeClamdReplying('UNKNOWN COMMAND'), 5);
 
-        $this->assertThrows(fn () => $scanner->scan($this->streamOf('isi')), ScanFailedException::class);
+        $this->assertThrows(fn () => $scanner->scan($this->piecesOf('isi')), ScanFailedException::class);
     }
 
     public function test_unreachable_clamd_is_an_error(): void
     {
         $scanner = new ClamAvScanner('tcp://127.0.0.1:1', 1);
 
-        $this->assertThrows(fn () => $scanner->scan($this->streamOf('isi')), ScanFailedException::class);
+        $this->assertThrows(fn () => $scanner->scan($this->piecesOf('isi')), ScanFailedException::class);
     }
 }

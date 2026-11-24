@@ -6,6 +6,7 @@ use App\Models\Assignment;
 use App\Models\File;
 use App\Models\Folder;
 use App\Models\User;
+use App\Services\Encryption\FileCipher;
 use App\Services\Scanning\ClamAvScanner;
 use App\Services\Scanning\LocalScanner;
 use App\Services\Scanning\VirusScanner;
@@ -27,6 +28,8 @@ class AppServiceProvider extends ServiceProvider
             'clamav' => new ClamAvScanner(config('berkas.clamav.socket'), config('berkas.clamav.timeout')),
             'lokal' => new LocalScanner($app->environment()),
         });
+
+        $this->app->bind(FileCipher::class, fn (): FileCipher => new FileCipher(config('berkas.encryption.key_path')));
     }
 
     /**

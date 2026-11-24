@@ -202,4 +202,36 @@ class FileContentControllerTest extends TestCase
 
         $this->get($url)->assertRedirect(route('login'));
     }
+
+    public function test_encrypted_file_is_served_as_its_original_content(): void
+    {
+        $this->fakeFileDisk();
+        $dewanPengawas = $this->userWithRole(RoleSlug::DewanPengawas);
+        $content = str_repeat('isi asli berkas rahasia ', 60_000);
+        $file = $this->storedFile(
+            Folder::factory()->confidential()->create(),
+            $dewanPengawas,
+            fileAttributes: ['classification' => Classification::Rahasia],
+            content: $content,
+            encrypted: true,
+        );
+
+        $response = $this->get($this->contentUrl($dewanPengawas, $file));
+
+        $response->assertOk();
+        $response->assertHeader('Content-Length', (string) strlen($content));
+        $this->assertSame($content, $response->streamedContent());
+    }
+
+    public function test_encrypted_file_is_not_served_without_the_encryption_key(): void
+    {
+        $this->fakeFileDisk();
+        $dewanPengawas = $this->userWithRole(RoleSlug::DewanPengawas);
+        $file = $this->storedFile(Folder::factory()->confidential()->create(), $dewanPengawas, encrypted: true);
+        $url = $this->contentUrl($dewanPengawas, $file);
+        $this->withoutEncryptionKey();
+
+        $this->get($url)->assertServiceUnavailable();
+        $this->assertSame(0, AuditLog::query()->where('action', AuditAction::FileDownloaded)->count());
+    }
 }

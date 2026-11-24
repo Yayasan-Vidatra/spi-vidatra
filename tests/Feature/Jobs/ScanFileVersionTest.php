@@ -111,4 +111,30 @@ class ScanFileVersionTest extends TestCase
         $this->assertSame([], $scanner->scannedContents);
         $this->assertSame(ScanStatus::Bersih, $file->currentVersion->fresh()->scan_status);
     }
+
+    public function test_encrypted_version_is_scanned_as_its_original_content(): void
+    {
+        $this->fakeFileDisk();
+        $scanner = FakeVirusScanner::clean();
+        $this->app->instance(VirusScanner::class, $scanner);
+        $file = $this->storedFile(Folder::factory()->confidential()->create(), User::factory()->create(), ScanStatus::Menunggu, content: 'isi asli rahasia', encrypted: true);
+
+        ScanFileVersion::dispatchSync($file->currentVersion);
+
+        $this->assertSame(['isi asli rahasia'], $scanner->scannedContents);
+        $this->assertSame(ScanStatus::Bersih, $file->currentVersion->fresh()->scan_status);
+    }
+
+    public function test_infected_encrypted_version_stays_encrypted_in_quarantine(): void
+    {
+        $this->fakeFileDisk();
+        $this->app->instance(VirusScanner::class, FakeVirusScanner::infected());
+        $file = $this->storedFile(Folder::factory()->confidential()->create(), User::factory()->create(), ScanStatus::Menunggu, content: 'isi asli rahasia', encrypted: true);
+
+        ScanFileVersion::dispatchSync($file->currentVersion);
+
+        $version = $file->currentVersion->fresh();
+        $this->assertStringStartsWith('karantina/', $version->storage_path);
+        $this->assertStringNotContainsString('isi asli rahasia', $this->storedBytes($version));
+    }
 }

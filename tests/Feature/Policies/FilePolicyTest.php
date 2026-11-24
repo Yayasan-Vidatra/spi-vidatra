@@ -159,6 +159,49 @@ class FilePolicyTest extends TestCase
             $this->assertFalse($user->can('view', $file));
             $this->assertFalse($user->can('download', [$file, $file->currentVersion]));
             $this->assertFalse($user->can('uploadVersion', $file));
+            $this->assertFalse($user->can('delete', $file));
         }
+
+        $this->assertFalse($user->can('viewAny', File::class));
+    }
+
+    public function test_delete_rules_follow_ownership_of_every_version(): void
+    {
+        $auditor = $this->auditor();
+        $dewanPengawas = $this->dewanPengawas();
+        $folder = Folder::factory()->for(Assignment::factory()->withAuditor($auditor))->create();
+        $ownFile = File::factory()->for($folder)->withVersion()->create(['created_by' => $auditor->id]);
+        $sharedFile = File::factory()->for($folder)->withVersion()->create(['created_by' => $auditor->id]);
+        FileVersion::factory()->for($sharedFile)->create(['uploaded_by' => $dewanPengawas->id]);
+        $generalFile = $this->fileIn(Folder::query()->whereNull('assignment_id')->where('name', 'Templat')->sole());
+
+        $this->assertTrue($auditor->can('delete', $ownFile));
+        $this->assertFalse($auditor->can('delete', $sharedFile));
+        $this->assertFalse($auditor->can('delete', $generalFile));
+        $this->assertTrue($dewanPengawas->can('delete', $sharedFile));
+        $this->assertTrue($dewanPengawas->can('delete', $generalFile));
+    }
+
+    public function test_trashed_file_can_only_be_restored_or_purged_by_dewan_pengawas(): void
+    {
+        $auditor = $this->auditor();
+        $dewanPengawas = $this->dewanPengawas();
+        $file = File::factory()->for(Folder::factory()->for(Assignment::factory()->withAuditor($auditor))->create())->withVersion()->create(['created_by' => $auditor->id]);
+        $file->delete();
+
+        $this->assertFalse($dewanPengawas->can('view', $file));
+        $this->assertFalse($dewanPengawas->can('delete', $file));
+        $this->assertTrue($dewanPengawas->can('restore', $file));
+        $this->assertTrue($dewanPengawas->can('forceDelete', $file));
+        $this->assertFalse($auditor->can('restore', $file));
+        $this->assertFalse($auditor->can('forceDelete', $file));
+    }
+
+    public function test_active_file_cannot_be_restored_or_purged(): void
+    {
+        $file = $this->fileIn(Folder::factory()->create());
+
+        $this->assertFalse($this->dewanPengawas()->can('restore', $file));
+        $this->assertFalse($this->dewanPengawas()->can('forceDelete', $file));
     }
 }

@@ -26,17 +26,20 @@ class FileVersion extends Model
         return [
             'version_number' => 'integer',
             'size' => 'integer',
+            'is_encrypted' => 'boolean',
             'scan_status' => ScanStatus::class,
             'scanned_at' => 'datetime',
         ];
     }
 
     /**
+     * Termasuk berkas di Tempat Sampah, karena versinya tetap ada sampai dihapus permanen.
+     *
      * @return BelongsTo<File, $this>
      */
     public function file(): BelongsTo
     {
-        return $this->belongsTo(File::class);
+        return $this->belongsTo(File::class)->withTrashed();
     }
 
     /**

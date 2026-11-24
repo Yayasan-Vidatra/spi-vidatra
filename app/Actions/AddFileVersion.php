@@ -16,7 +16,7 @@ use App\Models\User;
 class AddFileVersion
 {
     /**
-     * @param  array{stored_name: string, storage_path: string, size: int, mime_type: string, sha256: string}  $content
+     * @param  array{stored_name: string, storage_path: string, size: int, mime_type: string, sha256: string, is_encrypted: bool}  $content
      */
     public function handle(File $file, User $uploader, array $content, ?FileVersion $restoredFrom = null): FileVersion
     {

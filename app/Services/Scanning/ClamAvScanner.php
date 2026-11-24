@@ -20,9 +20,9 @@ class ClamAvScanner implements VirusScanner
     ) {}
 
     /**
-     * @param  resource  $stream
+     * @param  iterable<string>  $content
      */
-    public function scan($stream): ScanResult
+    public function scan(iterable $content): ScanResult
     {
         $connection = @stream_socket_client($this->socket, $errorCode, $errorMessage, $this->timeoutSeconds);
 
@@ -33,7 +33,7 @@ class ClamAvScanner implements VirusScanner
         try {
             stream_set_timeout($connection, $this->timeoutSeconds);
 
-            $this->send($connection, $stream);
+            $this->send($connection, $content);
 
             return $this->parseReply($this->readReply($connection));
         } finally {
@@ -46,23 +46,19 @@ class ClamAvScanner implements VirusScanner
      * Sending then stops and its reply is still read.
      *
      * @param  resource  $connection
-     * @param  resource  $stream
+     * @param  iterable<string>  $content
      */
-    private function send($connection, $stream): void
+    private function send($connection, iterable $content): void
     {
         if (! $this->write($connection, "zINSTREAM\0")) {
             return;
         }
 
-        while (! feof($stream)) {
-            $chunk = fread($stream, self::ChunkSize);
-
-            if ($chunk === false) {
-                throw new ScanFailedException('Isi berkas tidak bisa dibaca untuk dipindai.');
-            }
-
-            if ($chunk !== '' && ! $this->write($connection, pack('N', strlen($chunk)).$chunk)) {
-                return;
+        foreach ($content as $piece) {
+            foreach (str_split($piece, self::ChunkSize) as $chunk) {
+                if ($chunk !== '' && ! $this->write($connection, pack('N', strlen($chunk)).$chunk)) {
+                    return;
+                }
             }
         }
 

@@ -34,11 +34,11 @@ class FakeVirusScanner implements VirusScanner
     }
 
     /**
-     * @param  resource  $stream
+     * @param  iterable<string>  $content
      */
-    public function scan($stream): ScanResult
+    public function scan(iterable $content): ScanResult
     {
-        $this->scannedContents[] = stream_get_contents($stream);
+        $this->scannedContents[] = implode('', is_array($content) ? $content : iterator_to_array($content, false));
 
         return $this->result ?? throw new ScanFailedException('clamd: INSTREAM size limit exceeded. ERROR');
     }

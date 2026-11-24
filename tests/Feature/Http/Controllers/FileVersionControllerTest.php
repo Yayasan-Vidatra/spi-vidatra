@@ -11,6 +11,7 @@ use App\Models\File;
 use App\Models\FileVersion;
 use App\Models\Folder;
 use App\Models\User;
+use App\Services\FileVersionContent;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Queue;
@@ -214,5 +215,39 @@ class FileVersionControllerTest extends TestCase
         $file = $this->storedFile(Folder::factory()->create(), User::factory()->create());
 
         $this->get(route('berkas.versi.unduh', [$file, $file->currentVersion]))->assertRedirect(route('login'));
+    }
+
+    public function test_restoring_a_version_of_a_rahasia_file_stores_the_copy_encrypted(): void
+    {
+        $this->fakeFileDisk();
+        Queue::fake([ScanFileVersion::class]);
+        $dewanPengawas = $this->userWithRole(RoleSlug::DewanPengawas);
+        $folder = Folder::factory()->confidential()->create();
+        $file = $this->storedFile($folder, $dewanPengawas, content: 'versi pertama', encrypted: true);
+        $firstVersion = $file->currentVersion;
+        $secondVersion = FileVersion::factory()->for($file)->create(['is_encrypted' => true]);
+        $this->putVersionContent($secondVersion, 'versi kedua');
+        $file->forceFill(['current_version_id' => $secondVersion->id])->save();
+
+        $this->actingAsVerified($dewanPengawas)->post(route('berkas.versi.pulihkan', [$file, $firstVersion]));
+
+        $restored = $file->fresh()->currentVersion;
+        $this->assertSame(3, $restored->version_number);
+        $this->assertTrue($restored->is_encrypted);
+        $this->assertStringNotContainsString('versi pertama', $this->storedBytes($restored));
+        $this->assertSame('versi pertama', implode('', iterator_to_array(app(FileVersionContent::class)->read($restored), false)));
+    }
+
+    public function test_restoring_an_encrypted_version_is_refused_without_the_encryption_key(): void
+    {
+        $this->fakeFileDisk();
+        $dewanPengawas = $this->userWithRole(RoleSlug::DewanPengawas);
+        [$file, $firstVersion] = $this->fileWithTwoVersions(Folder::factory()->confidential()->create(), $dewanPengawas);
+        $this->withoutEncryptionKey();
+
+        $response = $this->actingAsVerified($dewanPengawas)->post(route('berkas.versi.pulihkan', [$file, $firstVersion]));
+
+        $response->assertSessionHasErrors(['version' => 'Kunci enkripsi berkas Rahasia belum terpasang di server. Hubungi Admin IT.']);
+        $this->assertSame(2, $file->versions()->count());
     }
 }

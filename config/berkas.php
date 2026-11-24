@@ -43,6 +43,29 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Enkripsi berkas Rahasia (US-12, Rancangan 6.3)
+    |--------------------------------------------------------------------------
+    |
+    | Kunci AES-256 terpisah dari APP_KEY, disimpan di berkas di luar folder
+    | aplikasi agar tidak ikut cadangan. Server: /etc/spi-vidatra/berkas-rahasia.key
+    | (milik pengguna spi, 0400). Buat dengan: php artisan berkas:buat-kunci
+    |
+    */
+
+    'encryption' => [
+        'key_path' => env('BERKAS_KEY_PATH') ?: storage_path('berkas-rahasia.key'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Tempat Sampah (US-13)
+    |--------------------------------------------------------------------------
+    */
+
+    'trash_retention_days' => 30,
+
+    /*
+    |--------------------------------------------------------------------------
     | Pemindai antivirus (US-09)
     |--------------------------------------------------------------------------
     |

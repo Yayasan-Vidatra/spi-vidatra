@@ -12,6 +12,8 @@ use App\Http\Controllers\FileVersionController;
 use App\Http\Controllers\FolderArchiveController;
 use App\Http\Controllers\FolderController;
 use App\Http\Controllers\GeneralFolderController;
+use App\Http\Controllers\SearchController;
+use App\Http\Controllers\TrashController;
 use App\Http\Controllers\TwoFactorChallengeController;
 use App\Http\Controllers\TwoFactorRecoveryCodeController;
 use App\Http\Controllers\TwoFactorSetupController;
@@ -88,6 +90,19 @@ Route::middleware(['auth', EnsureAccountHasAccess::class])->group(function () {
 
             Route::get('/folder-umum', [GeneralFolderController::class, 'index'])->name('folder-umum.index');
 
+            Route::get('/cari', [SearchController::class, 'index'])->name('cari.index');
+
+            // H-14: rute ini memuat berkas di Tempat Sampah; controller menolak berkas yang belum dihapus.
+            Route::get('/tempat-sampah', [TrashController::class, 'index'])->name('tempat-sampah.index');
+            Route::post('/tempat-sampah/{file}/pulihkan', [TrashController::class, 'restore'])
+                ->whereNumber('file')
+                ->withTrashed()
+                ->name('tempat-sampah.pulihkan');
+            Route::delete('/tempat-sampah/{file}', [TrashController::class, 'destroy'])
+                ->whereNumber('file')
+                ->withTrashed()
+                ->name('tempat-sampah.destroy');
+
             Route::post('/folder/{folder}/berkas', [FileController::class, 'store'])
                 ->whereNumber('folder')
                 ->middleware('throttle:berkas-unggah')
@@ -101,6 +116,7 @@ Route::middleware(['auth', EnsureAccountHasAccess::class])->group(function () {
                 ->group(function () {
                     Route::get('/', [FileController::class, 'show'])->name('show');
                     Route::patch('/', [FileController::class, 'update'])->name('update');
+                    Route::delete('/', [FileController::class, 'destroy'])->name('destroy');
 
                     Route::post('/versi/{version}/pulihkan', [FileVersionController::class, 'restore'])
                         ->whereNumber('version')

@@ -13,6 +13,7 @@ use App\Models\FileVersion;
 use App\Models\Folder;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\Encryption\ConfidentialFileEncryption;
 use App\Services\FolderFileList;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -76,6 +77,9 @@ class FileController extends Controller
                 'size' => $version->size,
                 'mime_type' => $version->mime_type,
                 'sha256' => $version->sha256,
+                'is_encrypted' => $version->is_encrypted,
+                'encryption_status' => $file->encryptionSyncStatusOf($version)?->value,
+                'encryption_status_label' => $file->encryptionSyncStatusOf($version)?->label(),
                 'scan_status' => $version->scan_status->value,
                 'scan_status_label' => $version->scan_status->label(),
                 'uploader' => $version->uploader->name,
@@ -89,18 +93,25 @@ class FileController extends Controller
                 ->map(fn (Classification $label): array => ['value' => $label->value, 'label' => $label->label()])
                 ->values(),
             'accessHistory' => $user->can('viewAccessHistory', $file) ? $this->accessHistory($file) : null,
-            'can' => ['changeLabel' => $user->can('changeLabel', $file)],
+            'can' => [
+                'changeLabel' => $user->can('changeLabel', $file),
+                'delete' => $user->can('delete', $file),
+            ],
         ]);
     }
 
-    public function update(UpdateFileRequest $request, File $file, AuditLogger $auditLogger): RedirectResponse
+    public function update(UpdateFileRequest $request, File $file, AuditLogger $auditLogger, ConfidentialFileEncryption $encryption): RedirectResponse
     {
         $classification = $request->enum('classification', Classification::class);
 
         if ($file->classification !== $classification) {
             Gate::authorize('changeLabel', [$file, $classification]);
 
-            DB::transaction(function () use ($file, $classification, $auditLogger): void {
+            $wasEncrypted = $file->requiresEncryption();
+            $willBeEncrypted = $classification === Classification::Rahasia || $file->folder->isWithinConfidential();
+            $encryption->ensureKeyForFileChange($file, $willBeEncrypted, 'classification');
+
+            DB::transaction(function () use ($file, $classification, $auditLogger, $encryption, $wasEncrypted, $willBeEncrypted): void {
                 $oldClassification = $file->classification;
                 $file->forceFill(['classification' => $classification])->save();
 
@@ -108,12 +119,39 @@ class FileController extends Controller
                     'from' => $oldClassification->value,
                     'to' => $classification->value,
                 ]);
+
+                // Semua versi dienkripsi atau didekripsi ulang di antrean (US-12).
+                if ($wasEncrypted !== $willBeEncrypted) {
+                    $encryption->syncFile($file);
+                }
             });
 
             Inertia::flash('success', "Label berkas diubah menjadi {$classification->label()}.");
         }
 
         return redirect()->route('berkas.show', $file);
+    }
+
+    /**
+     * Memindah berkas ke Tempat Sampah selama 30 hari (US-13).
+     */
+    public function destroy(Request $request, File $file, AuditLogger $auditLogger): RedirectResponse
+    {
+        Gate::authorize('delete', $file);
+
+        DB::transaction(function () use ($request, $file, $auditLogger): void {
+            $file->forceFill(['deleted_by' => $request->user()->id])->save();
+            $file->delete();
+
+            $auditLogger->record(AuditAction::FileDeleted, $file, [
+                'name' => $file->original_name,
+                'folder_id' => $file->folder_id,
+            ]);
+        });
+
+        Inertia::flash('success', "Berkas {$file->original_name} dipindah ke Tempat Sampah. Dewan Pengawas bisa memulihkannya dalam ".config('berkas.trash_retention_days').' hari.');
+
+        return redirect()->to($this->folderFileList->folderUrl($file->folder));
     }
 
     private function folderPath(Folder $folder): string

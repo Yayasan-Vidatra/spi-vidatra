@@ -95,6 +95,20 @@ class Folder extends Model
     }
 
     /**
+     * Subquery of the ids of every folder labelled Rahasia and every folder beneath one, the SQL
+     * counterpart of isWithinConfidential().
+     */
+    public static function confidentialFolderIdsSql(): string
+    {
+        return sprintf(
+            "(with recursive confidential_folders (id) as (select id from folders where classification = '%s'"
+            .' union all select folders.id from folders inner join confidential_folders on folders.parent_id = confidential_folders.id)'
+            .' select id from confidential_folders)',
+            Classification::Rahasia->value,
+        );
+    }
+
+    /**
      * Whether this folder is the given folder or lies somewhere beneath it.
      */
     public function isSameOrDescendantOf(self $folder): bool

@@ -20,9 +20,9 @@ class LocalScanner implements VirusScanner
     }
 
     /**
-     * @param  resource  $stream
+     * @param  iterable<string>  $content
      */
-    public function scan($stream): ScanResult
+    public function scan(iterable $content): ScanResult
     {
         return ScanResult::clean();
     }
