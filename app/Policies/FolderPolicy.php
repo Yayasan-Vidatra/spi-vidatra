@@ -97,7 +97,7 @@ class FolderPolicy
 
     private function canApplyLabel(User $user, Folder $folder, Classification $currentClassification, Classification $newClassification): bool
     {
-        if ($newClassification === Classification::Rahasia && ! $this->canAccessConfidential($user, $folder)) {
+        if ($newClassification === Classification::Rahasia && ! $this->accessConfidential($user, $folder)) {
             return false;
         }
 
@@ -105,7 +105,27 @@ class FolderPolicy
             || $user->hasRole(RoleSlug::DewanPengawas);
     }
 
-    private function canAccessConfidential(User $user, Folder $folder): bool
+    /**
+     * Regulasi dan Pedoman serta Templat: dilihat Dewan Pengawas dan Auditor SPI.
+     */
+    public function viewAnyGeneral(User $user): bool
+    {
+        return $user->hasRole(RoleSlug::DewanPengawas) || $user->hasRole(RoleSlug::AuditorSpi);
+    }
+
+    /**
+     * Mengunggah berkas mengikuti aturan perubahan folder (US-09): di folder umum hanya Dewan Pengawas.
+     */
+    public function uploadFile(User $user, Folder $folder): bool
+    {
+        return $this->canModify($user, $folder);
+    }
+
+    /**
+     * Whether the user may see content labelled Rahasia in this folder: Dewan Pengawas, or in an
+     * assignment an auditor given confidential access.
+     */
+    public function accessConfidential(User $user, Folder $folder): bool
     {
         if ($folder->assignment_id === null) {
             return $user->hasRole(RoleSlug::DewanPengawas);

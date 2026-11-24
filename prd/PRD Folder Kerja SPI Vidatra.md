@@ -210,9 +210,9 @@ Acuan: F, UC, dan nomor bagian dari Rancangan r0; R dari Daftar Revisi r1.
 | US-06 | UC-04 | H-05 | Demo 1 | Belum mulai |  |
 | US-07 | F-03, F-07 | H-05 | Demo 1 | Belum mulai |  |
 | US-08 | UC-13 | H-04 | Demo 1 | Belum mulai | Cabut akses Peninjau Tamu menyusul fitur berbagi (US-19) |
-| US-09 | F-04, Bagian 6.4 | H-05 | Demo 1 | Belum mulai |  |
+| US-09 | F-04, Bagian 6.4 | H-05 | Demo 1 | Belum mulai | Batas ukuran dan jenis berkas dari config (BERKAS_MAX_SIZE_MB) sampai US-29; syarat clamd.conf dan queue worker di README bagian Deploy |
 | US-10 | F-05 | H-06 | Demo 1 | Belum mulai |  |
-| US-11 | F-04, Bagian 6.2 | H-06 | Demo 1 | Belum mulai |  |
+| US-11 | F-04, Bagian 6.2 | H-06 | Demo 1 | Belum mulai | "Buka" dicatat saat isi berkas ditampilkan di pratinjau |
 | US-12 | Bagian 6.3, R2 | H-05, H-06 | Demo 2 | Belum mulai |  |
 | US-13 | F-12 | H-14 | Demo 2 | Belum mulai |  |
 | US-14 | F-11 | H-03 | Demo 2 | Belum mulai |  |

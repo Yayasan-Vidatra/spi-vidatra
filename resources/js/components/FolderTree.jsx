@@ -1,4 +1,4 @@
-import { Form } from '@inertiajs/react';
+import { Form, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import ClassificationBadge from './ClassificationBadge';
 
@@ -181,14 +181,24 @@ function FolderActions({ folder, assignmentId, folders, childrenByParent, onDone
     );
 }
 
-function FolderNode({ folder, assignmentId, folders, childrenByParent }) {
+function FolderNode({ folder, assignmentId, folders, childrenByParent, selectedFolderId }) {
     const children = childrenByParent.get(folder.id) ?? [];
+    const isSelected = folder.id === selectedFolderId;
 
     return (
         <li>
-            <div className="rounded-md px-2 py-2 hover:bg-gray-50">
+            <div className={`rounded-md px-2 py-2 ${isSelected ? 'bg-gray-100' : 'hover:bg-gray-50'}`}>
                 <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium">{folder.name}</span>
+                    <Link
+                        href={`/penugasan/${assignmentId}?folder=${folder.id}`}
+                        only={['selectedFolder']}
+                        preserveScroll
+                        preserveState
+                        aria-current={isSelected ? 'true' : undefined}
+                        className={`font-medium hover:underline ${isSelected ? 'underline' : ''}`}
+                    >
+                        {folder.name}
+                    </Link>
                     <ClassificationBadge value={folder.classification} label={folder.classification_label} />
                     {folder.is_locked && <span className="text-xs text-gray-500">Terkunci</span>}
                 </div>
@@ -203,6 +213,7 @@ function FolderNode({ folder, assignmentId, folders, childrenByParent }) {
                             assignmentId={assignmentId}
                             folders={folders}
                             childrenByParent={childrenByParent}
+                            selectedFolderId={selectedFolderId}
                         />
                     ))}
                 </ul>
@@ -211,7 +222,7 @@ function FolderNode({ folder, assignmentId, folders, childrenByParent }) {
     );
 }
 
-export default function FolderTree({ folders, assignmentId }) {
+export default function FolderTree({ folders, assignmentId, selectedFolderId }) {
     const byId = new Map(folders.map((folder) => [folder.id, folder]));
     const childrenByParent = new Map();
 
@@ -241,6 +252,7 @@ export default function FolderTree({ folders, assignmentId }) {
                     assignmentId={assignmentId}
                     folders={foldersWithPath}
                     childrenByParent={childrenByParent}
+                    selectedFolderId={selectedFolderId}
                 />
             ))}
         </ul>

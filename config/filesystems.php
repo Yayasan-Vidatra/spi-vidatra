@@ -38,6 +38,15 @@ return [
             'report' => false,
         ],
 
+        // Berkas SPI (US-09, Rancangan 6.3): di luar web root, tanpa URL publik; hanya disajikan lewat signed URL.
+        'berkas' => [
+            'driver' => 'local',
+            'root' => storage_path('app/berkas'),
+            'serve' => false,
+            'throw' => true,
+            'report' => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),

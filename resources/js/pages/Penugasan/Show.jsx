@@ -1,5 +1,6 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
+import FolderFiles from '../../components/FolderFiles';
 import FolderTree from '../../components/FolderTree';
 import AppLayout from '../../layouts/AppLayout';
 
@@ -130,7 +131,7 @@ function MemberPanel({ assignment, members, availableAuditors, canManage }) {
     );
 }
 
-export default function Show({ assignment, folders, archivedFolders, members, availableAuditors, can }) {
+export default function Show({ assignment, folders, selectedFolder, uploadRules, archivedFolders, members, availableAuditors, can }) {
     const isClosed = assignment.status === 'ditutup';
 
     return (
@@ -172,7 +173,7 @@ export default function Show({ assignment, folders, archivedFolders, members, av
                     <section className="rounded-lg border bg-white p-4">
                         <h2 className="font-semibold">Folder</h2>
                         <div className="mt-3">
-                            <FolderTree folders={folders} assignmentId={assignment.id} />
+                            <FolderTree folders={folders} assignmentId={assignment.id} selectedFolderId={selectedFolder?.id} />
                         </div>
                         {archivedFolders.length > 0 && (
                             <details className="mt-4 text-sm text-gray-600">
@@ -188,9 +189,11 @@ export default function Show({ assignment, folders, archivedFolders, members, av
                         )}
                     </section>
 
-                    <section className="rounded-lg border border-dashed bg-white p-4">
+                    <section className="rounded-lg border bg-white p-4">
                         <h2 className="font-semibold">Berkas</h2>
-                        <p className="mt-2 text-sm text-gray-500">Unggah dan daftar berkas akan tersedia di tahap berikutnya.</p>
+                        <div className="mt-3">
+                            <FolderFiles folder={selectedFolder} uploadRules={uploadRules} />
+                        </div>
                     </section>
                 </div>
 

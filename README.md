@@ -812,6 +812,66 @@ public/build/
 Production
 ```
 
+## Deploy
+
+Syarat server untuk modul berkas (US-09 sampai US-11). Server uji coba dipakai bersama SIGAP Vidatra (NF-08).
+
+### Ekstensi PHP
+
+`fileinfo` dan `zip` wajib ada (dicek `composer install`). Di Ubuntu: `sudo apt install php8.3-zip`; `fileinfo` sudah bawaan PHP.
+
+### Penyimpanan berkas
+
+- Berkas disimpan di disk `berkas` (`storage/app/berkas`), di luar `public/`, dengan nama UUID. Pastikan folder ini milik pengguna sistem PHP-FPM aplikasi ini dan tidak bisa dibaca pengguna SIGAP.
+- Berkas terinfeksi dipindah ke `storage/app/berkas/karantina/`.
+- Jangan membuat symlink atau alias Nginx ke `storage/app/berkas`. Isi berkas hanya disajikan lewat signed URL aplikasi.
+
+### Batas unggahan
+
+`.env`:
+
+```env
+BERKAS_MAX_SIZE_MB=50
+BERKAS_SCANNER=clamav
+CLAMAV_SOCKET=unix:///var/run/clamav/clamd.ctl
+CLAMAV_TIMEOUT=30
+```
+
+`BERKAS_SCANNER=lokal` hanya untuk `APP_ENV=local`; aplikasi menolak memakainya di server.
+
+Nginx dan PHP harus menerima berkas sebesar batas unggah:
+
+```nginx
+client_max_body_size 55M;
+```
+
+```ini
+upload_max_filesize = 50M
+post_max_size = 55M
+```
+
+### ClamAV (clamd)
+
+ClamAV dipakai bersama SIGAP, jadi batas di `/etc/clamav/clamd.conf` harus **minimal sebesar batas unggah terbesar dari semua aplikasi yang memakainya**. SIGAP menerima video sampai 100 MB, sehingga:
+
+```conf
+StreamMaxLength 105M
+MaxFileSize 105M
+MaxScanSize 105M
+```
+
+Lalu `sudo systemctl restart clamav-daemon`. Jika batas ini lebih kecil dari berkas yang diunggah, clamd membalas `INSTREAM size limit exceeded` dan berkas tetap berstatus **Menunggu pindai** (tidak pernah dianggap bersih), sehingga tidak bisa dibuka atau diunduh.
+
+### Queue worker
+
+Pemindaian antivirus berjalan lewat antrean. Tanpa worker, semua berkas tetap **Menunggu pindai**. Jalankan worker dengan Supervisor:
+
+```bash
+php artisan queue:work --tries=5 --timeout=60
+```
+
+Batas waktu worker (`--timeout`) harus lebih kecil dari `retry_after` koneksi antrean (90 detik).
+
 ## Git Workflow
 
 Project ini menggunakan Git untuk version control dan GitHub sebagai remote repository.
