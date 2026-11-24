@@ -4,8 +4,10 @@ namespace Tests\Feature\Http\Controllers;
 
 use App\Enums\AuditAction;
 use App\Enums\RoleSlug;
+use App\Enums\ScanStatus;
 use App\Models\Assignment;
 use App\Models\AuditLog;
+use App\Models\File;
 use App\Models\Folder;
 use App\Models\FolderTemplate;
 use App\Models\Unit;
@@ -369,5 +371,71 @@ class AssignmentControllerTest extends TestCase
             ->has('folders', 1)
             ->where('folders.0.name', 'Indikasi Fraud')
             ->where('folders.0.classification', 'rahasia'));
+    }
+
+    public function test_room_lists_the_files_of_the_selected_folder(): void
+    {
+        $auditor = $this->userWithRole(RoleSlug::AuditorSpi);
+        $assignment = Assignment::factory()->withAuditor($auditor)->create();
+        Folder::factory()->for($assignment)->standard()->create(['name' => '01 Perencanaan']);
+        $workingPapers = Folder::factory()->for($assignment)->standard()->create(['name' => '03 Kertas Kerja']);
+        File::factory()->for($workingPapers)->withVersion(ScanStatus::Menunggu)->create(['original_name' => 'KKA Kas.xlsx', 'created_by' => $auditor->id]);
+
+        $response = $this->actingAsVerified($auditor)->get(route('penugasan.show', ['assignment' => $assignment, 'folder' => $workingPapers->id]));
+
+        $response->assertInertia(fn (Assert $page) => $page
+            ->where('selectedFolder.id', $workingPapers->id)
+            ->where('selectedFolder.can.upload', true)
+            ->has('selectedFolder.files', 1)
+            ->where('selectedFolder.files.0.name', 'KKA Kas.xlsx')
+            ->where('selectedFolder.files.0.version_number', 1)
+            ->where('selectedFolder.files.0.classification', 'internal')
+            ->where('selectedFolder.files.0.scan_status', 'menunggu')
+            ->where('selectedFolder.files.0.uploader', $auditor->name)
+            ->where('uploadRules.allowed_extensions', config('berkas.allowed_extensions')));
+    }
+
+    public function test_room_selects_the_first_top_level_folder_by_default(): void
+    {
+        $auditor = $this->userWithRole(RoleSlug::AuditorSpi);
+        $assignment = Assignment::factory()->withAuditor($auditor)->create();
+        $planning = Folder::factory()->for($assignment)->standard()->create(['name' => '01 Perencanaan']);
+        Folder::factory()->for($assignment)->standard()->create(['name' => '02 Permintaan Dokumen']);
+
+        $response = $this->actingAsVerified($auditor)->get(route('penugasan.show', $assignment));
+
+        $response->assertInertia(fn (Assert $page) => $page->where('selectedFolder.id', $planning->id));
+    }
+
+    public function test_room_does_not_select_a_confidential_folder_or_list_rahasia_files_for_auditor_without_access(): void
+    {
+        $auditor = $this->userWithRole(RoleSlug::AuditorSpi);
+        $assignment = Assignment::factory()->withAuditor($auditor)->create();
+        $folder = Folder::factory()->for($assignment)->create(['name' => 'Kertas Kerja']);
+        $confidentialFolder = Folder::factory()->for($assignment)->confidential()->create(['name' => 'Indikasi Fraud']);
+        File::factory()->for($folder)->withVersion()->create(['original_name' => 'Umum.pdf']);
+        File::factory()->for($folder)->confidential()->withVersion()->create(['original_name' => 'Rahasia.pdf']);
+
+        $response = $this->actingAsVerified($auditor)->get(route('penugasan.show', ['assignment' => $assignment, 'folder' => $confidentialFolder->id]));
+
+        $response->assertInertia(fn (Assert $page) => $page
+            ->where('selectedFolder.id', $folder->id)
+            ->has('selectedFolder.files', 1)
+            ->where('selectedFolder.files.0.name', 'Umum.pdf'));
+    }
+
+    public function test_room_of_a_closed_assignment_lists_files_without_upload(): void
+    {
+        $dewanPengawas = $this->userWithRole(RoleSlug::DewanPengawas);
+        $assignment = Assignment::factory()->closed()->create();
+        $folder = Folder::factory()->for($assignment)->locked()->create();
+        File::factory()->for($folder)->withVersion()->create(['original_name' => 'Laporan Final.pdf']);
+
+        $response = $this->actingAsVerified($dewanPengawas)->get(route('penugasan.show', $assignment));
+
+        $response->assertInertia(fn (Assert $page) => $page
+            ->where('selectedFolder.can.upload', false)
+            ->where('selectedFolder.is_locked', true)
+            ->where('selectedFolder.files.0.name', 'Laporan Final.pdf'));
     }
 }

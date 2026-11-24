@@ -12,6 +12,7 @@ use App\Models\AssignmentMember;
 use App\Models\Folder;
 use App\Models\Unit;
 use App\Models\User;
+use App\Services\FolderFileList;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
@@ -77,7 +78,7 @@ class AssignmentController extends Controller
         return redirect()->route('penugasan.show', $assignment);
     }
 
-    public function show(Request $request, Assignment $assignment): Response
+    public function show(Request $request, Assignment $assignment, FolderFileList $folderFileList): Response
     {
         Gate::authorize('view', $assignment);
 
@@ -85,6 +86,11 @@ class AssignmentController extends Controller
         $assignment->load(['unit', 'teamLead', 'members.user']);
         $visibleFolders = $this->visibleFolders($assignment, $user);
         $canManageMembers = $user->can('manageMembers', $assignment);
+        $activeFolders = $visibleFolders->reject->isArchived()->values();
+
+        // Daftar berkas folder yang dipilih (US-09); tanpa pilihan, folder teratas pertama.
+        $selectedFolder = $activeFolders->firstWhere('id', $request->integer('folder'))
+            ?? $activeFolders->firstWhere('parent_id', null);
 
         return Inertia::render('Penugasan/Show', [
             'assignment' => [
@@ -100,9 +106,9 @@ class AssignmentController extends Controller
                 'closed_at' => $assignment->closed_at?->toDateString(),
                 'team_lead' => $assignment->teamLead?->name,
             ],
-            'folders' => $visibleFolders->reject->isArchived()
-                ->map(fn (Folder $folder): array => $this->folderData($folder, $user))
-                ->values(),
+            'folders' => $activeFolders->map(fn (Folder $folder): array => $this->folderData($folder, $user)),
+            'selectedFolder' => $selectedFolder === null ? null : $folderFileList->forFolder($selectedFolder, $user),
+            'uploadRules' => $folderFileList->uploadRules(),
             'archivedFolders' => $visibleFolders->filter->isArchived()
                 ->map(fn (Folder $folder): array => [
                     'id' => $folder->id,

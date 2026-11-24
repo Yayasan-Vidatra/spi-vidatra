@@ -6,14 +6,19 @@ use App\Http\Controllers\AssignmentMemberController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\GoogleController;
 use App\Http\Controllers\ConfidentialityStatementController;
+use App\Http\Controllers\FileContentController;
+use App\Http\Controllers\FileController;
+use App\Http\Controllers\FileVersionController;
 use App\Http\Controllers\FolderArchiveController;
 use App\Http\Controllers\FolderController;
+use App\Http\Controllers\GeneralFolderController;
 use App\Http\Controllers\TwoFactorChallengeController;
 use App\Http\Controllers\TwoFactorRecoveryCodeController;
 use App\Http\Controllers\TwoFactorSetupController;
 use App\Http\Middleware\EnsureAccountHasAccess;
 use App\Http\Middleware\EnsureConfidentialityStatementAccepted;
 use App\Http\Middleware\EnsureTwoFactorIsVerified;
+use App\Services\FileContentUrl;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/dasbor')->name('beranda');
@@ -79,6 +84,40 @@ Route::middleware(['auth', EnsureAccountHasAccess::class])->group(function () {
                     Route::post('/folder', [FolderController::class, 'store'])->name('folder.store');
                     Route::patch('/folder/{folder}', [FolderController::class, 'update'])->name('folder.update');
                     Route::post('/folder/{folder}/arsip', [FolderArchiveController::class, 'store'])->name('folder.arsip.store');
+                });
+
+            Route::get('/folder-umum', [GeneralFolderController::class, 'index'])->name('folder-umum.index');
+
+            Route::post('/folder/{folder}/berkas', [FileController::class, 'store'])
+                ->whereNumber('folder')
+                ->middleware('throttle:berkas-unggah')
+                ->name('folder.berkas.store');
+
+            // Scoped binding: versi dari berkas lain menghasilkan 404.
+            Route::prefix('berkas/{file}')
+                ->whereNumber('file')
+                ->name('berkas.')
+                ->scopeBindings()
+                ->group(function () {
+                    Route::get('/', [FileController::class, 'show'])->name('show');
+                    Route::patch('/', [FileController::class, 'update'])->name('update');
+
+                    Route::post('/versi/{version}/pulihkan', [FileVersionController::class, 'restore'])
+                        ->whereNumber('version')
+                        ->name('versi.pulihkan');
+                    Route::get('/versi/{version}/unduh', [FileVersionController::class, 'download'])
+                        ->whereNumber('version')
+                        ->name('versi.unduh');
+                    Route::get('/versi/{version}/pratinjau', [FileVersionController::class, 'preview'])
+                        ->whereNumber('version')
+                        ->name('versi.pratinjau');
+
+                    // Satu-satunya jalur isi berkas: signed URL 5 menit milik pengguna dan sesinya (US-11).
+                    Route::get('/versi/{version}/konten/{mode}', [FileContentController::class, 'show'])
+                        ->whereNumber('version')
+                        ->whereIn('mode', [FileContentUrl::ModePreview, FileContentUrl::ModeDownload])
+                        ->middleware(['signed', 'throttle:berkas-unduh'])
+                        ->name('konten');
                 });
         });
     });
