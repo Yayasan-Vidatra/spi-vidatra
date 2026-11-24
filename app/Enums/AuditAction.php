@@ -27,6 +27,12 @@ enum AuditAction: string
     case FileDownloaded = 'berkas.diunduh';
     case FileScanned = 'berkas.dipindai';
     case FileQuarantined = 'berkas.dikarantina';
+    case FileEncrypted = 'berkas.dienkripsi';
+    case FileDecrypted = 'berkas.didekripsi';
+    case FileEncryptionRescheduled = 'berkas.enkripsi_dijadwalkan_ulang';
+    case FileDeleted = 'berkas.dihapus';
+    case FileRestored = 'berkas.dipulihkan';
+    case FilePurged = 'berkas.dihapus_permanen';
 
     /**
      * Label aksi berkas untuk riwayat akses di H-06.
@@ -42,6 +48,12 @@ enum AuditAction: string
             self::FileDownloaded => 'Mengunduh',
             self::FileScanned => 'Pemindaian antivirus: bersih',
             self::FileQuarantined => 'Pemindaian antivirus: terinfeksi, dikarantina',
+            self::FileEncrypted => 'Isi dienkripsi',
+            self::FileDecrypted => 'Isi didekripsi',
+            self::FileEncryptionRescheduled => 'Enkripsi ulang tertahan, dijadwalkan ulang',
+            self::FileDeleted => 'Memindah ke Tempat Sampah',
+            self::FileRestored => 'Memulihkan dari Tempat Sampah',
+            self::FilePurged => 'Menghapus permanen',
             default => $this->value,
         };
     }

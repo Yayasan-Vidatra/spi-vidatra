@@ -35,8 +35,6 @@ class LocalScannerTest extends TestCase
 
     public function test_marks_content_clean_in_testing(): void
     {
-        $stream = fopen('php://memory', 'r');
-
-        $this->assertFalse((new LocalScanner('testing'))->scan($stream)->isInfected);
+        $this->assertFalse((new LocalScanner('testing'))->scan(['isi'])->isInfected);
     }
 }

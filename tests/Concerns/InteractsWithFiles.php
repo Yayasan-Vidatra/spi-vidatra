@@ -4,8 +4,10 @@ namespace Tests\Concerns;
 
 use App\Enums\ScanStatus;
 use App\Models\File;
+use App\Models\FileVersion;
 use App\Models\Folder;
 use App\Models\User;
+use App\Services\FileVersionContent;
 use Illuminate\Http\Testing\File as TestingFile;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -78,19 +80,46 @@ trait InteractsWithFiles
     }
 
     /**
-     * Create a file whose current version content exists on the faked disk.
+     * Create a file whose current version content exists on the faked disk, encrypted when asked.
      *
      * @param  array<string, mixed>  $fileAttributes
      */
-    protected function storedFile(Folder $folder, User $uploader, ScanStatus $scanStatus = ScanStatus::Bersih, array $fileAttributes = [], string $content = self::PdfContent): File
-    {
+    protected function storedFile(
+        Folder $folder,
+        User $uploader,
+        ScanStatus $scanStatus = ScanStatus::Bersih,
+        array $fileAttributes = [],
+        string $content = self::PdfContent,
+        bool $encrypted = false,
+    ): File {
         $file = File::factory()
             ->for($folder)
-            ->withVersion($scanStatus, ['size' => strlen($content), 'sha256' => hash('sha256', $content)])
+            ->withVersion($scanStatus, ['size' => strlen($content), 'sha256' => hash('sha256', $content), 'is_encrypted' => $encrypted])
             ->create(['created_by' => $uploader->id, ...$fileAttributes]);
 
-        Storage::disk(config('berkas.disk'))->put($file->currentVersion->storage_path, $content);
+        $this->putVersionContent($file->currentVersion, $content);
 
         return $file;
+    }
+
+    /**
+     * Store content for a version the way the application does, encrypted when the version says so.
+     */
+    protected function putVersionContent(FileVersion $version, string $content): void
+    {
+        app(FileVersionContent::class)->write($version->storage_path, [$content], $version->is_encrypted);
+    }
+
+    /**
+     * The raw bytes stored on the disk for a version.
+     */
+    protected function storedBytes(FileVersion $version): string
+    {
+        return Storage::disk(config('berkas.disk'))->get($version->storage_path);
+    }
+
+    protected function withoutEncryptionKey(): void
+    {
+        config(['berkas.encryption.key_path' => sys_get_temp_dir().'/kunci-yang-tidak-ada-'.uniqid().'.key']);
     }
 }

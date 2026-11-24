@@ -7,6 +7,7 @@ use App\Enums\Classification;
 use App\Enums\RoleSlug;
 use App\Enums\ScanStatus;
 use App\Jobs\ScanFileVersion;
+use App\Jobs\SyncFileEncryption;
 use App\Models\Assignment;
 use App\Models\File;
 use App\Models\FileVersion;
@@ -101,6 +102,7 @@ class FileControllerTest extends TestCase
             'size' => strlen(self::PdfContent),
             'mime_type' => 'application/pdf',
             'sha256' => hash('sha256', self::PdfContent),
+            'encrypted' => false,
         ], $auditor);
     }
 
@@ -622,5 +624,326 @@ class FileControllerTest extends TestCase
         $response = $this->actingAsVerified($auditor)->patch(route('berkas.update', $file), ['classification' => 'publik']);
 
         $response->assertSessionHasErrors(['classification' => 'Label tidak valid.']);
+    }
+
+    public function test_upload_to_a_rahasia_folder_is_stored_encrypted_and_scanned_as_original_content(): void
+    {
+        $this->fakeFileDisk();
+        $scanner = FakeVirusScanner::clean();
+        $this->app->instance(VirusScanner::class, $scanner);
+        [$auditor, $assignment] = $this->auditorWithFolder(canAccessConfidential: true);
+        $confidentialFolder = Folder::factory()->for($assignment)->confidential()->create();
+        $content = self::PdfContent.'% temuan sensitif';
+
+        $this->actingAsVerified($auditor)->post(route('folder.berkas.store', $confidentialFolder), [
+            'files' => [$this->pdfUpload('Indikasi.pdf', $content)],
+        ]);
+
+        $version = File::query()->where('original_name', 'Indikasi.pdf')->sole()->currentVersion;
+        $this->assertTrue($version->is_encrypted);
+        $this->assertSame(strlen($content), $version->size);
+        $this->assertSame(hash('sha256', $content), $version->sha256);
+        $this->assertStringNotContainsString('temuan sensitif', $this->storedBytes($version));
+        $this->assertStringStartsWith('SPIB', $this->storedBytes($version));
+        $this->assertSame([$content], $scanner->scannedContents);
+        $this->assertSame(ScanStatus::Bersih, $version->scan_status);
+    }
+
+    public function test_upload_to_an_internal_folder_beneath_a_rahasia_folder_is_encrypted(): void
+    {
+        $this->fakeFileDisk();
+        [$auditor, $assignment] = $this->auditorWithFolder(canAccessConfidential: true);
+        $confidentialFolder = Folder::factory()->for($assignment)->confidential()->create();
+        $internalChild = Folder::factory()->childOf($confidentialFolder)->create(['classification' => Classification::Internal]);
+
+        $this->actingAsVerified($auditor)->post(route('folder.berkas.store', $internalChild), [
+            'files' => [$this->pdfUpload('Lampiran.pdf')],
+        ]);
+
+        $this->assertTrue(File::query()->where('original_name', 'Lampiran.pdf')->sole()->currentVersion->is_encrypted);
+    }
+
+    public function test_upload_to_an_internal_folder_is_not_encrypted(): void
+    {
+        $this->fakeFileDisk();
+        [$auditor, , $folder] = $this->auditorWithFolder();
+
+        $this->actingAsVerified($auditor)->post(route('folder.berkas.store', $folder), [
+            'files' => [$this->pdfUpload('Biasa.pdf')],
+        ]);
+
+        $version = File::query()->where('original_name', 'Biasa.pdf')->sole()->currentVersion;
+        $this->assertFalse($version->is_encrypted);
+        $this->assertSame(self::PdfContent, $this->storedBytes($version));
+    }
+
+    public function test_new_version_of_a_rahasia_labelled_file_is_encrypted(): void
+    {
+        $this->fakeFileDisk();
+        [$auditor, , $folder] = $this->auditorWithFolder(canAccessConfidential: true);
+        $file = $this->storedFile($folder, $auditor, fileAttributes: ['original_name' => 'KKA.pdf', 'classification' => Classification::Rahasia], encrypted: true);
+
+        $this->actingAsVerified($auditor)->post(route('folder.berkas.store', $folder), [
+            'files' => [$this->pdfUpload('KKA.pdf', self::PdfContent.'% v2')],
+        ]);
+
+        $this->assertTrue($file->fresh()->currentVersion->is_encrypted);
+    }
+
+    public function test_upload_into_a_rahasia_folder_is_refused_without_the_encryption_key(): void
+    {
+        $this->fakeFileDisk();
+        $this->withoutEncryptionKey();
+        [$auditor, $assignment] = $this->auditorWithFolder(canAccessConfidential: true);
+        $confidentialFolder = Folder::factory()->for($assignment)->confidential()->create();
+
+        $response = $this->actingAsVerified($auditor)->post(route('folder.berkas.store', $confidentialFolder), [
+            'files' => [$this->pdfUpload('Indikasi.pdf')],
+        ]);
+
+        $response->assertSessionHasErrors(['files.0' => 'Kunci enkripsi berkas Rahasia belum terpasang di server. Hubungi Admin IT.']);
+        $this->assertSame(0, File::query()->count());
+        Storage::disk(config('berkas.disk'))->assertDirectoryEmpty('/');
+    }
+
+    public function test_upload_into_an_internal_folder_still_works_without_the_encryption_key(): void
+    {
+        $this->fakeFileDisk();
+        $this->withoutEncryptionKey();
+        [$auditor, , $folder] = $this->auditorWithFolder();
+
+        $response = $this->actingAsVerified($auditor)->post(route('folder.berkas.store', $folder), [
+            'files' => [$this->pdfUpload('Biasa.pdf')],
+        ]);
+
+        $response->assertSessionHasNoErrors();
+    }
+
+    public function test_labelling_a_file_rahasia_schedules_encryption_of_every_version(): void
+    {
+        $this->fakeFileDisk();
+        Queue::fake([SyncFileEncryption::class]);
+        [$auditor, , $folder] = $this->auditorWithFolder(canAccessConfidential: true);
+        $file = $this->storedFile($folder, $auditor);
+
+        $this->actingAsVerified($auditor)->patch(route('berkas.update', $file), ['classification' => 'rahasia']);
+
+        Queue::assertPushed(SyncFileEncryption::class, fn (SyncFileEncryption $job): bool => $job->file->is($file));
+    }
+
+    public function test_file_waiting_for_encryption_is_marked_on_the_folder_list_and_detail_page(): void
+    {
+        $this->freezeSecond();
+        $this->fakeFileDisk();
+        Queue::fake([SyncFileEncryption::class]);
+        [$auditor, $assignment, $folder] = $this->auditorWithFolder(canAccessConfidential: true);
+        $file = $this->storedFile($folder, $auditor);
+
+        $this->actingAsVerified($auditor)->patch(route('berkas.update', $file), ['classification' => 'rahasia']);
+
+        $this->assertEquals(now(), $file->fresh()->encryption_pending_since);
+        $this->actingAsVerified($auditor)->get(route('penugasan.show', ['assignment' => $assignment, 'folder' => $folder->id]))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('selectedFolder.files.0.encryption_status', 'menunggu_enkripsi')
+                ->where('selectedFolder.files.0.encryption_status_label', 'Menunggu enkripsi'));
+        $this->actingAsVerified($auditor)->get(route('berkas.show', $file))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('versions.0.is_encrypted', false)
+                ->where('versions.0.encryption_status', 'menunggu_enkripsi'));
+    }
+
+    public function test_file_waiting_for_decryption_is_marked_on_the_detail_page(): void
+    {
+        $this->fakeFileDisk();
+        Queue::fake([SyncFileEncryption::class]);
+        [$auditor, , $folder] = $this->auditorWithFolder(canAccessConfidential: true);
+        $file = $this->storedFile($folder, $auditor, fileAttributes: ['classification' => Classification::Rahasia], encrypted: true);
+
+        $this->actingAsVerified($this->userWithRole(RoleSlug::DewanPengawas))->patch(route('berkas.update', $file), ['classification' => 'internal']);
+
+        $this->actingAsVerified($auditor)->get(route('berkas.show', $file))
+            ->assertInertia(fn (Assert $page) => $page->where('versions.0.encryption_status_label', 'Menunggu dekripsi'));
+    }
+
+    public function test_file_following_its_label_shows_no_pending_status(): void
+    {
+        $this->fakeFileDisk();
+        [$auditor, $assignment, $folder] = $this->auditorWithFolder();
+        $this->storedFile($folder, $auditor);
+
+        $this->actingAsVerified($auditor)->get(route('penugasan.show', ['assignment' => $assignment, 'folder' => $folder->id]))
+            ->assertInertia(fn (Assert $page) => $page->where('selectedFolder.files.0.encryption_status', null));
+    }
+
+    public function test_access_follows_the_new_label_while_encryption_is_pending(): void
+    {
+        $this->fakeFileDisk();
+        Queue::fake([SyncFileEncryption::class]);
+        $auditor = $this->userWithRole(RoleSlug::AuditorSpi);
+        $confidentialAuditor = $this->userWithRole(RoleSlug::AuditorSpi);
+        $assignment = Assignment::factory()->withAuditor($auditor)->withAuditor($confidentialAuditor, canAccessConfidential: true)->create();
+        $file = $this->storedFile(Folder::factory()->for($assignment)->create(), $confidentialAuditor);
+
+        $this->actingAsVerified($confidentialAuditor)->patch(route('berkas.update', $file), ['classification' => 'rahasia']);
+
+        $this->assertFalse($file->currentVersion->fresh()->is_encrypted);
+        $this->actingAsVerified($auditor)->get(route('berkas.versi.unduh', [$file, $file->current_version_id]))->assertForbidden();
+        $this->actingAsVerified($confidentialAuditor)->get(route('berkas.versi.unduh', [$file, $file->current_version_id]))->assertRedirect();
+    }
+
+    public function test_changing_between_labels_outside_rahasia_does_not_re_encrypt(): void
+    {
+        $this->fakeFileDisk();
+        Queue::fake([SyncFileEncryption::class]);
+        [$auditor, , $folder] = $this->auditorWithFolder();
+        $file = $this->storedFile($folder, $auditor);
+
+        $this->actingAsVerified($auditor)->patch(route('berkas.update', $file), ['classification' => 'umum']);
+
+        Queue::assertNotPushed(SyncFileEncryption::class);
+    }
+
+    public function test_labelling_a_file_rahasia_is_refused_without_the_encryption_key(): void
+    {
+        $this->fakeFileDisk();
+        $this->withoutEncryptionKey();
+        [$auditor, , $folder] = $this->auditorWithFolder(canAccessConfidential: true);
+        $file = $this->storedFile($folder, $auditor);
+
+        $response = $this->actingAsVerified($auditor)->patch(route('berkas.update', $file), ['classification' => 'rahasia']);
+
+        $response->assertSessionHasErrors(['classification' => 'Kunci enkripsi berkas Rahasia belum terpasang di server. Hubungi Admin IT.']);
+        $this->assertSame(Classification::Internal, $file->fresh()->classification);
+    }
+
+    public function test_lowering_a_rahasia_file_is_refused_without_the_encryption_key(): void
+    {
+        $this->fakeFileDisk();
+        [$auditor, , $folder] = $this->auditorWithFolder(canAccessConfidential: true);
+        $file = $this->storedFile($folder, $auditor, fileAttributes: ['classification' => Classification::Rahasia], encrypted: true);
+        $this->withoutEncryptionKey();
+
+        $response = $this->actingAsVerified($this->userWithRole(RoleSlug::DewanPengawas))
+            ->patch(route('berkas.update', $file), ['classification' => 'internal']);
+
+        $response->assertSessionHasErrors(['classification' => 'Kunci enkripsi berkas Rahasia belum terpasang di server. Hubungi Admin IT.']);
+        $this->assertSame(Classification::Rahasia, $file->fresh()->classification);
+    }
+
+    public function test_super_admin_cannot_open_or_download_a_rahasia_file(): void
+    {
+        $this->fakeFileDisk();
+        $file = $this->storedFile(
+            Folder::factory()->confidential()->create(),
+            User::factory()->create(),
+            fileAttributes: ['classification' => Classification::Rahasia],
+            encrypted: true,
+        );
+        $superAdmin = $this->userWithRole(RoleSlug::SuperAdmin);
+
+        $this->actingAsVerified($superAdmin)->get(route('berkas.show', $file))->assertForbidden();
+        $this->actingAsVerified($superAdmin)->get(route('berkas.versi.unduh', [$file, $file->current_version_id]))->assertForbidden();
+        $this->actingAsVerified($superAdmin)->get(route('berkas.versi.pratinjau', [$file, $file->current_version_id]))->assertForbidden();
+    }
+
+    public function test_auditor_deletes_a_file_whose_versions_are_all_theirs(): void
+    {
+        $this->fakeFileDisk();
+        [$auditor, $assignment, $folder] = $this->auditorWithFolder();
+        $file = $this->storedFile($folder, $auditor);
+
+        $response = $this->actingAsVerified($auditor)->delete(route('berkas.destroy', $file));
+
+        $response->assertRedirect(route('penugasan.show', ['assignment' => $assignment, 'folder' => $folder->id]));
+        $file->refresh();
+        $this->assertTrue($file->trashed());
+        $this->assertSame($auditor->id, $file->deleted_by);
+        Storage::disk(config('berkas.disk'))->assertExists($file->currentVersion->storage_path);
+        $this->assertAuditLogged(AuditAction::FileDeleted, $file, ['name' => $file->original_name, 'folder_id' => $folder->id], $auditor);
+    }
+
+    public function test_auditor_cannot_delete_a_file_with_a_version_from_someone_else(): void
+    {
+        $this->fakeFileDisk();
+        [$auditor, , $folder] = $this->auditorWithFolder();
+        $file = $this->storedFile($folder, $auditor);
+        FileVersion::factory()->for($file)->create(['uploaded_by' => $this->userWithRole(RoleSlug::DewanPengawas)->id]);
+
+        $this->actingAsVerified($auditor)->delete(route('berkas.destroy', $file))->assertForbidden();
+
+        $this->assertFalse($file->fresh()->trashed());
+    }
+
+    public function test_auditor_cannot_delete_a_file_uploaded_by_another_auditor(): void
+    {
+        $this->fakeFileDisk();
+        $auditor = $this->userWithRole(RoleSlug::AuditorSpi);
+        $otherAuditor = $this->userWithRole(RoleSlug::AuditorSpi);
+        $assignment = Assignment::factory()->withAuditor($auditor)->withAuditor($otherAuditor)->create();
+        $file = $this->storedFile(Folder::factory()->for($assignment)->create(), $otherAuditor);
+
+        $this->actingAsVerified($auditor)->delete(route('berkas.destroy', $file))->assertForbidden();
+    }
+
+    public function test_dewan_pengawas_deletes_any_file(): void
+    {
+        $this->fakeFileDisk();
+        [$auditor, , $folder] = $this->auditorWithFolder();
+        $file = $this->storedFile($folder, $auditor);
+
+        $this->actingAsVerified($this->userWithRole(RoleSlug::DewanPengawas))->delete(route('berkas.destroy', $file));
+
+        $this->assertTrue($file->fresh()->trashed());
+    }
+
+    public function test_cannot_delete_a_file_in_a_closed_assignment(): void
+    {
+        $this->fakeFileDisk();
+        [$auditor, $assignment, $folder] = $this->auditorWithFolder();
+        $file = $this->storedFile($folder, $auditor);
+        $assignment->forceFill(['status' => 'ditutup', 'closed_at' => now()])->save();
+        $folder->forceFill(['is_locked' => true])->save();
+
+        $this->actingAsVerified($this->userWithRole(RoleSlug::DewanPengawas))->delete(route('berkas.destroy', $file))->assertForbidden();
+    }
+
+    #[DataProvider('rolesWithoutAssignmentAccess')]
+    public function test_roles_without_assignment_access_cannot_delete(RoleSlug $roleSlug): void
+    {
+        $this->fakeFileDisk();
+        $file = $this->storedFile(Folder::factory()->create(), User::factory()->create());
+
+        $this->actingAsVerified($this->userWithRole($roleSlug))->delete(route('berkas.destroy', $file))->assertForbidden();
+    }
+
+    public function test_trashed_file_cannot_be_opened_or_downloaded_by_direct_url(): void
+    {
+        $this->fakeFileDisk();
+        [$auditor, , $folder] = $this->auditorWithFolder();
+        $file = $this->storedFile($folder, $auditor);
+        $contentUrl = $this->actingAsVerified($auditor)->get(route('berkas.versi.unduh', [$file, $file->current_version_id]))->headers->get('Location');
+        $file->delete();
+
+        $this->actingAsVerified($auditor)->get(route('berkas.show', $file))->assertNotFound();
+        $this->actingAsVerified($auditor)->get(route('berkas.versi.unduh', [$file, $file->current_version_id]))->assertNotFound();
+        $this->actingAsVerified($auditor)->get($contentUrl)->assertNotFound();
+    }
+
+    public function test_uploading_the_name_of_a_trashed_file_creates_a_separate_file(): void
+    {
+        $this->fakeFileDisk();
+        [$auditor, , $folder] = $this->auditorWithFolder();
+        $trashed = $this->storedFile($folder, $auditor, fileAttributes: ['original_name' => 'Laporan.pdf']);
+        $trashed->delete();
+
+        $response = $this->actingAsVerified($auditor)->post(route('folder.berkas.store', $folder), [
+            'files' => [$this->pdfUpload('Laporan.pdf')],
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $newFile = File::query()->where('original_name', 'Laporan.pdf')->sole();
+        $this->assertNotSame($trashed->id, $newFile->id);
+        $this->assertSame(1, $newFile->currentVersion->version_number);
+        $this->assertSame(1, $trashed->versions()->count());
     }
 }

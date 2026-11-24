@@ -1,6 +1,7 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import ClassificationBadge from '../../components/ClassificationBadge';
+import EncryptionStatusBadge from '../../components/EncryptionStatusBadge';
 import { formatBytes, formatDateTime } from '../../components/fileFormat';
 import ScanStatusBadge from '../../components/ScanStatusBadge';
 import AppLayout from '../../layouts/AppLayout';
@@ -58,12 +59,14 @@ function VersionRow({ file, version }) {
                 <span className="font-medium">Versi {version.number}</span>
                 {version.is_current && <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs">Terkini</span>}
                 <ScanStatusBadge value={version.scan_status} label={version.scan_status_label} />
+                <EncryptionStatusBadge value={version.encryption_status} label={version.encryption_status_label} />
             </div>
             <p className="mt-1 text-gray-600">
                 {version.uploader} · {formatDateTime(version.uploaded_at)} · {formatBytes(version.size)}
                 {version.restored_from && ` · dipulihkan dari versi ${version.restored_from}`}
             </p>
             <p className="mt-1 break-all font-mono text-xs text-gray-500">SHA-256 {version.sha256}</p>
+            {version.is_encrypted && <p className="mt-1 text-xs text-gray-600">Disimpan terenkripsi (AES-256)</p>}
             <div className="mt-2 flex flex-wrap items-center gap-3">
                 {version.download_url && (
                     <a href={version.download_url} className="text-xs font-medium text-gray-700 underline">
@@ -78,7 +81,7 @@ function VersionRow({ file, version }) {
                             className="inline-flex flex-wrap items-center gap-2"
                             onSuccess={() => setIsConfirmingRestore(false)}
                         >
-                            {({ processing }) => (
+                            {({ errors, processing }) => (
                                 <>
                                     <span className="text-xs text-gray-700">
                                         Isi versi {version.number} akan disalin menjadi versi terbaru. Riwayat versi tetap tersimpan.
@@ -89,6 +92,7 @@ function VersionRow({ file, version }) {
                                     <button type="button" onClick={() => setIsConfirmingRestore(false)} className="text-xs font-medium text-gray-600 underline">
                                         Batal
                                     </button>
+                                    {errors.version && <p className="w-full text-xs text-red-600">{errors.version}</p>}
                                 </>
                             )}
                         </Form>
@@ -99,6 +103,36 @@ function VersionRow({ file, version }) {
                     ))}
             </div>
         </li>
+    );
+}
+
+function DeleteFile({ file }) {
+    const [isConfirming, setIsConfirming] = useState(false);
+
+    if (!isConfirming) {
+        return (
+            <button type="button" onClick={() => setIsConfirming(true)} className="rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50">
+                Hapus berkas
+            </button>
+        );
+    }
+
+    return (
+        <Form action={`/berkas/${file.id}`} method="delete" className="flex flex-wrap items-center gap-2 rounded-md border border-red-200 bg-red-50 p-3">
+            {({ processing }) => (
+                <>
+                    <span className="text-sm text-red-800">
+                        Berkas dan semua versinya pindah ke Tempat Sampah. Hanya Dewan Pengawas yang bisa memulihkannya dalam 30 hari.
+                    </span>
+                    <button type="submit" disabled={processing} className="rounded-md bg-red-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-800">
+                        Ya, hapus
+                    </button>
+                    <button type="button" onClick={() => setIsConfirming(false)} className="text-sm text-gray-700 underline">
+                        Batal
+                    </button>
+                </>
+            )}
+        </Form>
     );
 }
 
@@ -138,7 +172,8 @@ export default function Show({ file, preview, versions, allowedLabels, accessHis
                 Kembali ke folder
             </Link>
 
-            <div className="mt-4">
+            <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
+                <div>
                 <div className="flex flex-wrap items-center gap-2">
                     <h1 className="break-all text-2xl font-semibold">{file.name}</h1>
                     <ClassificationBadge value={file.classification} label={file.classification_label} />
@@ -148,6 +183,15 @@ export default function Show({ file, preview, versions, allowedLabels, accessHis
                     {file.folder_path}
                     {file.is_locked && ' · Terkunci, baca saja'}
                 </p>
+                {versions.some((version) => version.encryption_status) && (
+                    <p role="status" className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                        Label berkas sudah berubah. Isi yang tersimpan sedang{' '}
+                        {versions.some((version) => version.encryption_status === 'menunggu_enkripsi') ? 'dienkripsi' : 'didekripsi'} ulang di antrean.
+                        Akses tetap mengikuti label baru.
+                    </p>
+                )}
+                </div>
+                {can.delete && <DeleteFile file={file} />}
             </div>
 
             <div className="mt-6 grid gap-6 lg:grid-cols-3">

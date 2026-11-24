@@ -1,4 +1,4 @@
-import { Link, usePage } from '@inertiajs/react';
+import { Form, Link, usePage } from '@inertiajs/react';
 
 export default function AppLayout({ children }) {
     const { props, flash } = usePage();
@@ -22,7 +22,24 @@ export default function AppLayout({ children }) {
                                 Regulasi dan Templat
                             </Link>
                         )}
+                        {auth.can?.searchFiles && (
+                            <Link href="/tempat-sampah" className="text-sm font-medium text-gray-700 hover:text-gray-900">
+                                Tempat Sampah
+                            </Link>
+                        )}
                     </nav>
+                    {auth.can?.searchFiles && (
+                        <Form action="/cari" method="get" role="search" className="flex items-center gap-2">
+                            <input
+                                type="search"
+                                name="q"
+                                maxLength={100}
+                                placeholder="Cari berkas"
+                                aria-label="Cari berkas"
+                                className="w-44 rounded-md border px-2 py-1.5 text-sm sm:w-56"
+                            />
+                        </Form>
+                    )}
                     {auth.user && (
                         <div className="flex items-center gap-4 text-sm">
                             <span className="text-gray-600">

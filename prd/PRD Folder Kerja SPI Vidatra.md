@@ -213,9 +213,9 @@ Acuan: F, UC, dan nomor bagian dari Rancangan r0; R dari Daftar Revisi r1.
 | US-09 | F-04, Bagian 6.4 | H-05 | Demo 1 | Sesuai rancangan | Batas ukuran dan jenis berkas dari config (BERKAS_MAX_SIZE_MB) sampai US-29; syarat clamd.conf dan queue worker di README bagian Deploy |
 | US-10 | F-05 | H-06 | Demo 1 | Sesuai rancangan |  |
 | US-11 | F-04, Bagian 6.2 | H-06 | Demo 1 | Sesuai rancangan | "Buka" dicatat saat isi berkas ditampilkan di pratinjau |
-| US-12 | Bagian 6.3, R2 | H-05, H-06 | Demo 2 | Belum mulai |  |
-| US-13 | F-12 | H-14 | Demo 2 | Belum mulai |  |
-| US-14 | F-11 | H-03 | Demo 2 | Belum mulai |  |
+| US-12 | Bagian 6.3, R2 | H-05, H-06 | Demo 2 | Belum mulai | Diperketat: semua berkas di bawah folder Rahasia juga dienkripsi, termasuk lewat ubah label folder dan pindah folder. Isi dienkripsi saat unggah; pemindaian mendekripsi sambil mengalirkan ke clamd. Tanpa kunci, aksi yang mengenkripsi atau mendekripsi ditolak. Kunci di /etc/spi-vidatra/berkas-rahasia.key (README bagian Deploy) |
+| US-13 | F-12 | H-14 | Demo 2 | Belum mulai | "Berkas miliknya" = semua versi diunggah auditor itu. Auditor melihat H-14 untuk penugasannya tanpa pulihkan/hapus permanen. Nama berkas di Tempat Sampah bisa dipakai lagi; pulihkan yang bentrok diberi akhiran "(dipulihkan YYYY-MM-DD)". Pembersihan otomatis butuh cron scheduler (Langkah 6) |
+| US-14 | F-11 | H-03 | Demo 2 | Belum mulai | Kotak cari di header (/cari) untuk Dewan Pengawas dan Auditor; disaring di query dengan aturan yang sama seperti FilePolicy. Kata kunci tidak dicatat di log |
 | US-15 | F-08, UC-06 | H-07 | Demo 2 | Belum mulai |  |
 | US-16 | F-08, UC-07 | H-08 | Demo 2 | Belum mulai |  |
 | US-17 | UC-08 | H-07 | Demo 2 | Belum mulai |  |

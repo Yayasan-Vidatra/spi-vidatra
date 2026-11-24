@@ -826,6 +826,33 @@ Syarat server untuk modul berkas (US-09 sampai US-11). Server uji coba dipakai b
 - Berkas terinfeksi dipindah ke `storage/app/berkas/karantina/`.
 - Jangan membuat symlink atau alias Nginx ke `storage/app/berkas`. Isi berkas hanya disajikan lewat signed URL aplikasi.
 
+### Kunci enkripsi berkas Rahasia (US-12)
+
+Isi berkas berlabel Rahasia dan semua berkas di bawah folder Rahasia dienkripsi AES-256-GCM dengan kunci terpisah dari `APP_KEY`. Kunci disimpan di luar folder aplikasi agar tidak ikut cadangan.
+
+```env
+BERKAS_KEY_PATH=/etc/spi-vidatra/berkas-rahasia.key
+```
+
+Buat sekali saat pemasangan, sebagai pengguna sistem aplikasi (`spi`):
+
+```bash
+sudo install -d -o spi -g spi -m 0700 /etc/spi-vidatra
+sudo -u spi php artisan berkas:buat-kunci
+```
+
+Perintah ini membuat berkas kunci dengan hak 0400 dan tidak pernah menimpa kunci yang sudah ada. Salin isi kunci ke tempat aman yang dipegang Dewan Pengawas, terpisah dari cadangan server. **Tanpa kunci ini, berkas Rahasia tidak bisa dibuka lagi.**
+
+Selama kunci belum terpasang, aplikasi menolak mengunggah dan membuka berkas Rahasia, mengubah label ke atau dari Rahasia, memindah folder ke dalam atau keluar dari induk Rahasia, dan memulihkan versi berkas Rahasia. Berkas lain tetap bisa dipakai.
+
+Jika ada berkas Rahasia yang diunggah sebelum fitur enkripsi aktif, jalankan sekali (job berjalan di queue worker):
+
+```bash
+php artisan berkas:enkripsi-rahasia
+```
+
+Di lokal, `php artisan berkas:buat-kunci` membuat `storage/berkas-rahasia.key` (sudah diabaikan Git).
+
 ### Batas unggahan
 
 `.env`:
@@ -871,6 +898,31 @@ php artisan queue:work --tries=5 --timeout=60
 ```
 
 Batas waktu worker (`--timeout`) harus lebih kecil dari `retry_after` koneksi antrean (90 detik).
+
+Enkripsi ulang berkas saat label berubah (US-12) juga berjalan lewat worker yang sama.
+
+**Jalankan ulang worker di setiap deploy.** Worker memuat kode sekali saat mulai, jadi setelah `git pull` worker lama tetap menjalankan kode lama dan bisa melewatkan job baru, misalnya enkripsi ulang berkas yang labelnya diubah ke Rahasia. Skrip deploy (Langkah 6) wajib menjalankan, setelah `migrate --force`:
+
+```bash
+php artisan queue:restart
+```
+
+Supervisor lalu menyalakan worker baru dengan kode terbaru. Selama enkripsi ulang belum selesai, H-05 dan H-06 menampilkan **Menunggu enkripsi** atau **Menunggu dekripsi**; akses tetap mengikuti label baru.
+
+### Scheduler
+
+Tugas terjadwal:
+
+- `berkas:kosongkan-sampah` setiap hari pukul 02.00: berkas yang sudah 30 hari di Tempat Sampah dihapus permanen (US-13).
+- `berkas:periksa-enkripsi` setiap 5 menit: berkas yang isinya belum mengikuti label lebih dari 10 menit (misalnya karena worker mati atau masih kode lama) dijadwalkan ulang, dicatat di log audit (`berkas.enkripsi_dijadwalkan_ulang`) dan log aplikasi (US-12). Jika peringatan ini sering muncul, periksa queue worker.
+
+Tambahkan cron untuk pengguna `spi`:
+
+```cron
+* * * * * cd /path/ke/spi-vidatra && php artisan schedule:run >> /dev/null 2>&1
+```
+
+Di lokal: `php artisan schedule:work`.
 
 ## Git Workflow
 

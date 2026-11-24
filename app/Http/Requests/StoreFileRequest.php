@@ -6,6 +6,8 @@ use App\Actions\StoreFileUpload;
 use App\Models\File;
 use App\Models\Folder;
 use App\Rules\AllowedFileContent;
+use App\Services\Encryption\ConfidentialFileEncryption;
+use App\Services\Encryption\FileCipher;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\UploadedFile;
@@ -96,6 +98,14 @@ class StoreFileRequest extends FormRequest
 
                     if ($existingFile !== null && $this->user()->cannot('uploadVersion', $existingFile)) {
                         $validator->errors()->add("files.{$index}", StoreFileUpload::BlockedNameMessage);
+
+                        continue;
+                    }
+
+                    $keyIsMissing = ! $this->container->make(FileCipher::class)->isAvailable();
+
+                    if ($keyIsMissing && $this->container->make(StoreFileUpload::class)->willBeEncrypted($this->folder(), $name)) {
+                        $validator->errors()->add("files.{$index}", ConfidentialFileEncryption::KeyMissingMessage);
                     }
                 }
             },

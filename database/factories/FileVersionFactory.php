@@ -29,6 +29,7 @@ class FileVersionFactory extends Factory
             'size' => 1024,
             'mime_type' => 'application/pdf',
             'sha256' => hash('sha256', fake()->uuid()),
+            'is_encrypted' => false,
             'scan_status' => ScanStatus::Bersih,
             'scanned_at' => now(),
             'scan_signature' => null,

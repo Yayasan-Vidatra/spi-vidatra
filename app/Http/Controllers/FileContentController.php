@@ -6,9 +6,12 @@ use App\Enums\AuditAction;
 use App\Models\File;
 use App\Models\FileVersion;
 use App\Services\AuditLogger;
+use App\Services\Encryption\ConfidentialFileEncryption;
+use App\Services\Encryption\DecryptionFailedException;
+use App\Services\Encryption\FileCipher;
 use App\Services\FileContentUrl;
+use App\Services\FileVersionContent;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\HeaderUtils;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -20,20 +23,39 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class FileContentController extends Controller
 {
-    public function show(File $file, FileVersion $version, string $mode, FileContentUrl $contentUrl, AuditLogger $auditLogger): StreamedResponse
-    {
+    public function show(
+        File $file,
+        FileVersion $version,
+        string $mode,
+        FileContentUrl $contentUrl,
+        AuditLogger $auditLogger,
+        FileVersionContent $fileContent,
+        FileCipher $cipher,
+    ): StreamedResponse {
         abort_unless($contentUrl->isBoundToCurrentSession(), 403, 'Tautan ini bukan milik sesi Anda.');
 
         $isPreview = $mode === FileContentUrl::ModePreview;
 
         Gate::authorize($isPreview ? 'preview' : 'download', [$file, $version]);
 
+        // Tanpa kunci, isi Rahasia tidak pernah disajikan (US-12).
+        abort_if($version->is_encrypted && ! $cipher->isAvailable(), 503, ConfidentialFileEncryption::KeyMissingMessage);
+
         $auditLogger->record($isPreview ? AuditAction::FileViewed : AuditAction::FileDownloaded, $file, [
             'version' => $version->version_number,
             'version_id' => $version->id,
         ]);
 
-        return Storage::disk(config('berkas.disk'))->response($version->storage_path, null, [
+        return response()->stream(function () use ($fileContent, $version): void {
+            try {
+                foreach ($fileContent->read($version) as $chunk) {
+                    echo $chunk;
+                }
+            } catch (DecryptionFailedException $exception) {
+                // Header sudah terkirim; unduhan berhenti lebih pendek dari Content-Length sehingga browser menandainya gagal.
+                report($exception);
+            }
+        }, 200, [
             'Content-Type' => $version->mime_type,
             'Content-Length' => $version->size,
             'Content-Disposition' => $this->contentDisposition($isPreview ? HeaderUtils::DISPOSITION_INLINE : HeaderUtils::DISPOSITION_ATTACHMENT, $file->original_name),
