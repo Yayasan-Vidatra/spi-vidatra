@@ -202,17 +202,17 @@ Acuan: F, UC, dan nomor bagian dari Rancangan r0; R dari Daftar Revisi r1.
 
 | Kode | Acuan rancangan | Halaman | Target | Status | Catatan |
 | --- | --- | --- | --- | --- | --- |
-| US-01 | F-01, UC-01, R4 | H-01 | Demo 1 | Belum mulai |  |
-| US-02 | Bagian 6.1, R3 | H-02 | Demo 1 | Belum mulai |  |
-| US-03 | Bagian 6.8 | H-02 | Demo 1 | Belum mulai | Penyuntingan teks via H-13 menyusul di US-29 |
-| US-04 | Bagian 6.1 | H-12 | Demo 1 | Belum mulai | Cabut sesi dipindah ke Serah terima (H-12) |
-| US-05 | F-03, UC-03, Bagian 9.1 | H-04, H-05 | Demo 1 | Belum mulai |  |
-| US-06 | UC-04 | H-05 | Demo 1 | Belum mulai |  |
-| US-07 | F-03, F-07 | H-05 | Demo 1 | Belum mulai |  |
-| US-08 | UC-13 | H-04 | Demo 1 | Belum mulai | Cabut akses Peninjau Tamu menyusul fitur berbagi (US-19) |
-| US-09 | F-04, Bagian 6.4 | H-05 | Demo 1 | Belum mulai | Batas ukuran dan jenis berkas dari config (BERKAS_MAX_SIZE_MB) sampai US-29; syarat clamd.conf dan queue worker di README bagian Deploy |
-| US-10 | F-05 | H-06 | Demo 1 | Belum mulai |  |
-| US-11 | F-04, Bagian 6.2 | H-06 | Demo 1 | Belum mulai | "Buka" dicatat saat isi berkas ditampilkan di pratinjau |
+| US-01 | F-01, UC-01, R4 | H-01 | Demo 1 | Sesuai rancangan |  |
+| US-02 | Bagian 6.1, R3 | H-02 | Demo 1 | Sesuai rancangan |  |
+| US-03 | Bagian 6.8 | H-02 | Demo 1 | Sesuai rancangan | Penyuntingan teks via H-13 menyusul di US-29 |
+| US-04 | Bagian 6.1 | H-12 | Demo 1 | Sebagian | Cabut sesi dipindah ke Serah terima (H-12) |
+| US-05 | F-03, UC-03, Bagian 9.1 | H-04, H-05 | Demo 1 | Sesuai rancangan |  |
+| US-06 | UC-04 | H-05 | Demo 1 | Sesuai rancangan |  |
+| US-07 | F-03, F-07 | H-05 | Demo 1 | Sesuai rancangan |  |
+| US-08 | UC-13 | H-04 | Demo 1 | Sesuai rancangan | Cabut akses Peninjau Tamu menyusul fitur berbagi (US-19) |
+| US-09 | F-04, Bagian 6.4 | H-05 | Demo 1 | Sesuai rancangan | Batas ukuran dan jenis berkas dari config (BERKAS_MAX_SIZE_MB) sampai US-29; syarat clamd.conf dan queue worker di README bagian Deploy |
+| US-10 | F-05 | H-06 | Demo 1 | Sesuai rancangan |  |
+| US-11 | F-04, Bagian 6.2 | H-06 | Demo 1 | Sesuai rancangan | "Buka" dicatat saat isi berkas ditampilkan di pratinjau |
 | US-12 | Bagian 6.3, R2 | H-05, H-06 | Demo 2 | Belum mulai |  |
 | US-13 | F-12 | H-14 | Demo 2 | Belum mulai |  |
 | US-14 | F-11 | H-03 | Demo 2 | Belum mulai |  |
