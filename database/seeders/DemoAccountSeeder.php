@@ -5,15 +5,18 @@ namespace Database\Seeders;
 use App\Enums\AuditAction;
 use App\Enums\RoleSlug;
 use App\Models\Role;
+use App\Models\Unit;
 use App\Models\User;
 use App\Services\AuditLogger;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
 
 /**
- * Menetapkan peran akun uji dari DEMO_ACCOUNTS, di luar alur persetujuan US-22.
+ * Menetapkan peran akun uji dari DEMO_ACCOUNTS, di luar alur persetujuan US-22, beserta unit untuk PIC Unit
+ * (format `email:peran:kode-unit`).
  *
  * Jalur sementara khusus non-produksi (tercatat di log deviasi PRD). Seeder ini tidak
  * menetapkan peran super-admin dan tidak mengubah peran akun yang sudah Super Admin;
@@ -50,8 +53,8 @@ class DemoAccountSeeder extends Seeder
 
         $this->ensureNoSuperAdminIsChanged(array_keys($accounts));
 
-        foreach ($accounts as $email => $roleSlug) {
-            $this->assignRole($email, $roleSlug);
+        foreach ($accounts as $email => ['role' => $roleSlug, 'unit' => $unit]) {
+            $this->assignRole($email, $roleSlug, $unit);
         }
     }
 
@@ -78,15 +81,16 @@ class DemoAccountSeeder extends Seeder
     /**
      * Parse and validate every entry before anything is written, so a typo changes nothing.
      *
-     * @return array<string, RoleSlug>
+     * @return array<string, array{role: RoleSlug, unit: Unit|null}>
      */
     private function parseAccounts(string $value): array
     {
         $domain = config('services.google.allowed_domain');
+        $units = Unit::query()->get()->keyBy('code');
         $accounts = [];
 
         foreach (array_filter(array_map('trim', explode(',', $value))) as $entry) {
-            [$email, $role] = array_pad(array_map('trim', explode(':', $entry, 2)), 2, '');
+            [$email, $role, $unitCode] = array_pad(array_map('trim', explode(':', $entry, 3)), 3, '');
             $email = Str::lower($email);
             $roleSlug = RoleSlug::tryFrom($role);
 
@@ -110,36 +114,85 @@ class DemoAccountSeeder extends Seeder
                 throw new RuntimeException("DEMO_ACCOUNTS tidak valid: \"{$entry}\". Peran harus salah satu dari: {$validRoles}.");
             }
 
-            $accounts[$email] = $roleSlug;
+            $accounts[$email] = [
+                'role' => $roleSlug,
+                'unit' => $this->parseUnit($entry, $roleSlug, Str::upper($unitCode), $units),
+            ];
         }
 
         return $accounts;
     }
 
-    private function assignRole(string $email, RoleSlug $roleSlug): void
+    /**
+     * PIC Unit wajib punya unit (US-16); peran lain tidak punya unit.
+     *
+     * @param  Collection<string, Unit>  $units
+     */
+    private function parseUnit(string $entry, RoleSlug $roleSlug, string $unitCode, Collection $units): ?Unit
     {
-        DB::transaction(function () use ($email, $roleSlug): void {
+        if ($roleSlug !== RoleSlug::PicUnit) {
+            if ($unitCode !== '') {
+                throw new RuntimeException(
+                    "DEMO_ACCOUNTS tidak valid: \"{$entry}\". Kode unit hanya untuk peran ".RoleSlug::PicUnit->value.'.'
+                );
+            }
+
+            return null;
+        }
+
+        return $units->get($unitCode) ?? throw new RuntimeException(sprintf(
+            'DEMO_ACCOUNTS tidak valid: "%s". Peran %s wajib memakai format email:%s:kode-unit, dengan kode unit salah satu dari: %s.',
+            $entry,
+            RoleSlug::PicUnit->value,
+            RoleSlug::PicUnit->value,
+            $units->keys()->implode(', '),
+        ));
+    }
+
+    private function assignRole(string $email, RoleSlug $roleSlug, ?Unit $unit): void
+    {
+        DB::transaction(function () use ($email, $roleSlug, $unit): void {
             $role = Role::query()->where('slug', $roleSlug)->firstOrFail();
             $user = User::query()->firstOrCreate(['email' => $email], ['name' => Str::before($email, '@')]);
             $previousRoleSlug = $user->role?->slug;
+            $previousUnitCode = $user->unit?->code;
+            $unitLabel = $unit === null ? '' : " (unit {$unit->code})";
 
-            if ($previousRoleSlug === $roleSlug) {
-                $this->command?->line("{$email} sudah berperan {$roleSlug->value}; dilewati.");
+            if ($previousRoleSlug === $roleSlug && $user->unit_id === $unit?->id) {
+                $this->command?->line("{$email} sudah berperan {$roleSlug->value}{$unitLabel}; dilewati.");
 
                 return;
             }
 
-            $user->role()->associate($role)->save();
+            $user->role()->associate($role);
+            $user->unit()->associate($unit);
+            $user->save();
 
-            $this->auditLogger->record(AuditAction::DemoRoleAssigned, $user, [
-                'email' => $email,
-                'from' => $previousRoleSlug?->value,
-                'to' => $roleSlug->value,
+            $context = [
                 'source' => 'DemoAccountSeeder',
                 'environment' => app()->environment(),
-            ]);
+            ];
 
-            $this->command?->info("{$email} ditetapkan sebagai {$roleSlug->value}.");
+            if ($previousRoleSlug !== $roleSlug) {
+                $this->auditLogger->record(AuditAction::DemoRoleAssigned, $user, [
+                    'email' => $email,
+                    'from' => $previousRoleSlug?->value,
+                    'to' => $roleSlug->value,
+                    'from_unit' => $previousUnitCode,
+                    'to_unit' => $unit?->code,
+                    ...$context,
+                ]);
+            } else {
+                $this->auditLogger->record(AuditAction::DemoUnitAssigned, $user, [
+                    'email' => $email,
+                    'role' => $roleSlug->value,
+                    'from_unit' => $previousUnitCode,
+                    'to_unit' => $unit?->code,
+                    ...$context,
+                ]);
+            }
+
+            $this->command?->info("{$email} ditetapkan sebagai {$roleSlug->value}{$unitLabel}.");
         });
     }
 }

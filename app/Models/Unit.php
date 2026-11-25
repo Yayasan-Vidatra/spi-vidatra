@@ -24,4 +24,22 @@ class Unit extends Model
     {
         return $this->hasMany(Assignment::class);
     }
+
+    /**
+     * PIC Unit untuk unit ini; satu unit boleh punya lebih dari satu PIC.
+     *
+     * @return HasMany<User, $this>
+     */
+    public function users(): HasMany
+    {
+        return $this->hasMany(User::class);
+    }
+
+    /**
+     * @return HasMany<DocumentRequest, $this>
+     */
+    public function documentRequests(): HasMany
+    {
+        return $this->hasMany(DocumentRequest::class);
+    }
 }

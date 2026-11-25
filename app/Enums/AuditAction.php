@@ -8,6 +8,7 @@ namespace App\Enums;
 enum AuditAction: string
 {
     case DemoRoleAssigned = 'akun.peran_demo_ditetapkan';
+    case DemoUnitAssigned = 'akun.unit_demo_ditetapkan';
     case AssignmentCreated = 'penugasan.dibuat';
     case AssignmentClosed = 'penugasan.ditutup';
     case AssignmentReopened = 'penugasan.dibuka_kembali';
