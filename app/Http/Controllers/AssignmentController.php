@@ -148,7 +148,7 @@ class AssignmentController extends Controller
      */
     private function visibleFolders(Assignment $assignment, User $user): Collection
     {
-        $folders = $assignment->folders()->orderBy('name')->get();
+        $folders = $assignment->folders()->with('documentRequest')->orderBy('name')->get();
         $foldersById = $folders->keyBy('id');
 
         foreach ($folders as $folder) {

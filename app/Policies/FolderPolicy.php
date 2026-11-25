@@ -136,11 +136,13 @@ class FolderPolicy
 
     /**
      * Folder terkunci, folder terarsip, dan penugasan yang ditutup menolak semua perubahan.
-     * Folder umum di luar penugasan hanya dikelola Dewan Pengawas.
+     * Folder umum di luar penugasan hanya dikelola Dewan Pengawas. Subfolder permintaan dokumen hanya
+     * diubah lewat alur slot (US-15 sampai US-17), sehingga berkas slot tidak bisa diunggah ulang, diberi
+     * label, atau dihapus lewat H-05.
      */
     private function canModify(User $user, Folder $folder): bool
     {
-        if ($folder->is_locked || $folder->isArchived() || ! $this->view($user, $folder)) {
+        if ($folder->is_locked || $folder->isArchived() || $folder->isRequestFolder() || ! $this->view($user, $folder)) {
             return false;
         }
 

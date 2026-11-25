@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Collection;
 
 /**
@@ -66,13 +67,32 @@ class Folder extends Model
     }
 
     /**
-     * Folder baku penugasan dan folder umum yang dibuat seeder tidak bisa diubah nama,
-     * dipindah, atau diarsipkan, karena modul lain bergantung padanya.
+     * Permintaan dokumen yang memakai folder ini sebagai subfolder slot (US-15).
+     *
+     * @return HasOne<DocumentRequest, $this>
+     */
+    public function documentRequest(): HasOne
+    {
+        return $this->hasOne(DocumentRequest::class);
+    }
+
+    /**
+     * Folder baku penugasan, folder umum yang dibuat seeder, dan subfolder permintaan dokumen tidak bisa
+     * diubah nama, dipindah, atau diarsipkan, karena modul lain bergantung padanya.
      */
     public function isProtected(): bool
     {
         return $this->folder_template_id !== null
-            || ($this->assignment_id === null && $this->parent_id === null);
+            || ($this->assignment_id === null && $this->parent_id === null)
+            || $this->isRequestFolder();
+    }
+
+    /**
+     * Subfolder permintaan dokumen hanya diisi lewat slot unggah (US-16), bukan lewat H-05.
+     */
+    public function isRequestFolder(): bool
+    {
+        return $this->assignment_id !== null && $this->documentRequest !== null;
     }
 
     public function isArchived(): bool

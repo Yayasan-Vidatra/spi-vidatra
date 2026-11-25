@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\RoleSlug;
 use Database\Factories\UnitFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -33,6 +34,18 @@ class Unit extends Model
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
+    }
+
+    /**
+     * PIC Unit aktif yang menerima permintaan dokumen untuk unit ini (US-15).
+     *
+     * @return HasMany<User, $this>
+     */
+    public function picUsers(): HasMany
+    {
+        return $this->users()
+            ->where('is_active', true)
+            ->whereRelation('role', 'slug', RoleSlug::PicUnit);
     }
 
     /**

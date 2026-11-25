@@ -73,6 +73,50 @@ class RequestItem extends Model
     }
 
     /**
+     * Format groups an auditor may choose for a slot: those in config whose extensions are all allowed uploads.
+     *
+     * @return array<string, array{label: string, extensions: list<string>}>
+     */
+    public static function formatGroups(): array
+    {
+        $allowedExtensions = config('berkas.allowed_extensions');
+
+        return array_filter(
+            config('berkas.request_format_groups'),
+            fn (array $group): bool => array_diff($group['extensions'], $allowedExtensions) === [],
+        );
+    }
+
+    /**
+     * @param  list<string>  $groupKeys
+     * @return list<string>
+     */
+    public static function extensionsForGroups(array $groupKeys): array
+    {
+        $groups = self::formatGroups();
+
+        return array_values(array_unique(array_merge(
+            ...array_map(fn (string $key): array => $groups[$key]['extensions'], $groupKeys),
+        )));
+    }
+
+    /**
+     * Labels of the format groups this slot accepts, for display.
+     *
+     * @return list<string>
+     */
+    public function acceptedFormatLabels(): array
+    {
+        return array_values(array_map(
+            fn (array $group): string => $group['label'],
+            array_filter(
+                config('berkas.request_format_groups'),
+                fn (array $group): bool => array_intersect($group['extensions'], $this->accepted_extensions) !== [],
+            ),
+        ));
+    }
+
+    /**
      * Terlambat (KF-08): the unit still owes an upload and the request's deadline has passed.
      */
     public function isOverdue(?CarbonInterface $now = null): bool

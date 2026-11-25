@@ -5,6 +5,7 @@ namespace Tests\Feature\Policies;
 use App\Enums\Classification;
 use App\Enums\RoleSlug;
 use App\Models\Assignment;
+use App\Models\DocumentRequest;
 use App\Models\Folder;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
@@ -67,6 +68,19 @@ class FolderPolicyTest extends TestCase
         $this->assertFalse($dewanPengawas->can('archive', $standardFolder));
         $this->assertTrue($dewanPengawas->can('changeLabel', [$standardFolder, Classification::Rahasia]));
         $this->assertTrue($dewanPengawas->can('createSubfolder', $standardFolder));
+    }
+
+    public function test_document_request_folder_is_visible_but_only_changed_through_the_slot_flow(): void
+    {
+        $dewanPengawas = $this->dewanPengawas();
+        $documentRequest = DocumentRequest::factory()->create();
+        $requestFolder = $documentRequest->folder;
+
+        $this->assertTrue($dewanPengawas->can('view', $requestFolder));
+        $this->assertTrue($requestFolder->isProtected());
+        foreach (['uploadFile', 'createSubfolder', 'rename', 'move', 'archive', 'changeLabel'] as $ability) {
+            $this->assertFalse($dewanPengawas->can($ability, $requestFolder), "Dewan Pengawas seharusnya tidak bisa {$ability}.");
+        }
     }
 
     public function test_assigned_auditor_can_manage_subfolders(): void

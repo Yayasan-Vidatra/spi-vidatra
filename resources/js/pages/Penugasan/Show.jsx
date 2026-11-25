@@ -164,8 +164,16 @@ export default function Show({ assignment, folders, selectedFolder, uploadRules,
                         </p>
                     )}
                 </div>
-                {/* key: pasang ulang saat status berubah agar konfirmasi tutup tidak tersisa setelah tutup atau buka kembali. */}
-                <ClosureControls key={assignment.status} assignment={assignment} can={can} />
+                <div className="flex flex-wrap items-start gap-2">
+                    <Link
+                        href={`/penugasan/${assignment.id}/permintaan`}
+                        className="rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-gray-100"
+                    >
+                        Permintaan dokumen
+                    </Link>
+                    {/* key: pasang ulang saat status berubah agar konfirmasi tutup tidak tersisa setelah tutup atau buka kembali. */}
+                    <ClosureControls key={assignment.status} assignment={assignment} can={can} />
+                </div>
             </div>
 
             <div className="mt-8 grid gap-6 lg:grid-cols-3">

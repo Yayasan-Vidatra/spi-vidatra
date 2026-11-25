@@ -6,6 +6,7 @@ use App\Http\Controllers\AssignmentMemberController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\GoogleController;
 use App\Http\Controllers\ConfidentialityStatementController;
+use App\Http\Controllers\DocumentRequestController;
 use App\Http\Controllers\FileContentController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\FileVersionController;
@@ -86,6 +87,14 @@ Route::middleware(['auth', EnsureAccountHasAccess::class])->group(function () {
                     Route::post('/folder', [FolderController::class, 'store'])->name('folder.store');
                     Route::patch('/folder/{folder}', [FolderController::class, 'update'])->name('folder.update');
                     Route::post('/folder/{folder}/arsip', [FolderArchiveController::class, 'store'])->name('folder.arsip.store');
+
+                    // H-07 Permintaan Dokumen (SPI); permintaan dari penugasan lain menghasilkan 404.
+                    Route::get('/permintaan', [DocumentRequestController::class, 'index'])->name('permintaan.index');
+                    Route::get('/permintaan/buat', [DocumentRequestController::class, 'create'])->name('permintaan.create');
+                    Route::post('/permintaan', [DocumentRequestController::class, 'store'])->name('permintaan.store');
+                    Route::get('/permintaan/{documentRequest}', [DocumentRequestController::class, 'show'])
+                        ->whereNumber('documentRequest')
+                        ->name('permintaan.show');
                 });
 
             Route::get('/folder-umum', [GeneralFolderController::class, 'index'])->name('folder-umum.index');
