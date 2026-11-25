@@ -13,3 +13,6 @@ Schedule::command('berkas:kosongkan-sampah')->dailyAt('02:00')->withoutOverlappi
 
 // Enkripsi ulang yang tertahan lebih dari 10 menit dijadwalkan ulang (US-12).
 Schedule::command('berkas:periksa-enkripsi')->everyFiveMinutes()->withoutOverlapping();
+
+// Salinan slot Diterima ke 04 Bukti Unit yang tertahan lebih dari 60 menit dijadwalkan ulang (US-17).
+Schedule::command('permintaan:periksa-salinan')->everyFifteenMinutes()->withoutOverlapping();

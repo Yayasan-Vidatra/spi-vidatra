@@ -37,6 +37,9 @@ enum AuditAction: string
     case DocumentRequestCreated = 'permintaan.dibuat';
     case RequestItemUploaded = 'permintaan.slot_diunggah';
     case RequestItemInfected = 'permintaan.slot_terinfeksi';
+    case RequestItemReviewed = 'permintaan.slot_diperiksa';
+    case RequestItemCopiedToEvidence = 'permintaan.slot_disalin_ke_bukti';
+    case DocumentRequestCompleted = 'permintaan.selesai';
 
     /**
      * Label aksi berkas untuk riwayat akses di H-06.

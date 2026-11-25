@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\CreateDocumentRequest;
 use App\Enums\RequestItemStatus;
+use App\Http\Requests\ReviewRequestItemRequest;
 use App\Http\Requests\StoreDocumentRequestRequest;
 use App\Models\Assignment;
 use App\Models\DocumentRequest;
@@ -16,7 +17,8 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * H-07 Permintaan Dokumen (SPI) per penugasan: buat permintaan dan pantau status slot (US-15, US-18).
+ * H-07 Permintaan Dokumen (SPI) per penugasan: buat permintaan, pantau status slot, dan periksa hasil
+ * unggahan unit (US-15, US-17, US-18).
  */
 class DocumentRequestController extends Controller
 {
@@ -84,15 +86,17 @@ class DocumentRequestController extends Controller
         return redirect()->route('penugasan.permintaan.show', [$assignment, $documentRequest]);
     }
 
-    public function show(Assignment $assignment, DocumentRequest $documentRequest): Response
+    public function show(Request $request, Assignment $assignment, DocumentRequest $documentRequest): Response
     {
         $documentRequest->setRelation('assignment', $assignment);
         Gate::authorize('view', $documentRequest);
 
-        $documentRequest->load(['unit', 'creator', 'items.file.currentVersion.uploader']);
+        $documentRequest->load(['unit', 'creator', 'folder', 'items.file.currentVersion.uploader', 'items.reviewer', 'items.evidenceFile']);
+        $user = $request->user();
 
         return Inertia::render('Permintaan/Show', [
             'assignment' => $this->assignmentData($assignment),
+            'maxNoteLength' => ReviewRequestItemRequest::MaxNoteLength,
             'documentRequest' => [
                 'id' => $documentRequest->id,
                 'number' => $documentRequest->sequence_number,
@@ -103,8 +107,10 @@ class DocumentRequestController extends Controller
                 'creator' => $documentRequest->creator->name,
                 'created_at' => $documentRequest->created_at->toIso8601String(),
             ],
-            'items' => $documentRequest->items->map(function (RequestItem $item) use ($documentRequest): array {
+            'items' => $documentRequest->items->map(function (RequestItem $item) use ($documentRequest, $user): array {
                 $item->setRelation('documentRequest', $documentRequest);
+                $item->file?->setRelation('folder', $documentRequest->folder);
+                $currentVersion = $item->file?->currentVersion;
 
                 return [
                     'id' => $item->id,
@@ -125,6 +131,16 @@ class DocumentRequestController extends Controller
                         'uploader' => $item->file->currentVersion?->uploader->name,
                         'scan_status' => $item->file->currentVersion?->scan_status->value,
                         'scan_status_label' => $item->file->currentVersion?->scan_status->label(),
+                    ],
+                    'version_id' => $currentVersion?->id,
+                    'can_review' => $user->can('review', $item),
+                    'review_waits_for_scan' => $currentVersion !== null && ! $currentVersion->hasPassedScan(),
+                    'reviewer' => $item->reviewer?->name,
+                    'reviewed_at' => $item->reviewed_at?->toIso8601String(),
+                    'evidence_copy_pending' => $item->isEvidenceCopyPending(),
+                    'evidence_file' => $item->evidenceFile === null ? null : [
+                        'id' => $item->evidenceFile->id,
+                        'name' => $item->evidenceFile->original_name,
                     ],
                 ];
             }),

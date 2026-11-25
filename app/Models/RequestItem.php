@@ -38,6 +38,7 @@ class RequestItem extends Model
             'sort_order' => 'integer',
             'submitted_at' => 'datetime',
             'reviewed_at' => 'datetime',
+            'evidence_copy_pending_since' => 'datetime',
         ];
     }
 
@@ -67,6 +68,16 @@ class RequestItem extends Model
     public function evidenceFile(): BelongsTo
     {
         return $this->belongsTo(File::class, 'evidence_file_id');
+    }
+
+    /**
+     * Versi berkas slot yang diterima auditor; hanya versi ini yang disalin ke "04 Bukti Unit" (US-17).
+     *
+     * @return BelongsTo<FileVersion, $this>
+     */
+    public function acceptedVersion(): BelongsTo
+    {
+        return $this->belongsTo(FileVersion::class, 'accepted_version_id');
     }
 
     /**
@@ -128,6 +139,23 @@ class RequestItem extends Model
     public function slotFileName(string $extension): string
     {
         return $this->name.'.'.strtolower($extension);
+    }
+
+    /**
+     * The name of the copy in "04 Bukti Unit" before any " (2)" suffix: the unit code and the document name,
+     * with the extension of the accepted version's file.
+     */
+    public function evidenceFileName(): string
+    {
+        return $this->documentRequest->unit->code.' - '.$this->name.'.'.strtolower(pathinfo($this->file->original_name, PATHINFO_EXTENSION));
+    }
+
+    /**
+     * Diterima, but the copy job has not placed the accepted version in "04 Bukti Unit" yet ("salinan ke 04 tertunda").
+     */
+    public function isEvidenceCopyPending(): bool
+    {
+        return $this->status === RequestItemStatus::Diterima && $this->evidence_file_id === null;
     }
 
     /**

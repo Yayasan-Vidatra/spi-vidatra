@@ -25,4 +25,21 @@ class RequestItemPolicy
             && $item->status !== RequestItemStatus::Diterima
             && ! $documentRequest->assignment->isClosed();
     }
+
+    /**
+     * Memeriksa slot (US-17, UC-08): Dewan Pengawas dan auditor yang ditunjuk di penugasannya, selama
+     * penugasan belum ditutup, untuk slot Diunggah yang berkasnya boleh ia buka (berkas Rahasia butuh akses
+     * Rahasia). PIC Unit, Pengurus Yayasan, Super Admin, dan Peninjau Tamu tidak bisa memeriksa. Berkas yang
+     * belum dinyatakan bersih oleh pemindai ditolak saat hasil periksa disimpan.
+     */
+    public function review(User $user, RequestItem $item): bool
+    {
+        $documentRequest = $item->documentRequest;
+
+        return $item->status === RequestItemStatus::Diunggah
+            && $item->file !== null
+            && ! $documentRequest->assignment->isClosed()
+            && Gate::forUser($user)->allows('view', $documentRequest)
+            && Gate::forUser($user)->allows('view', $item->file);
+    }
 }

@@ -13,6 +13,7 @@ use App\Http\Controllers\FileVersionController;
 use App\Http\Controllers\FolderArchiveController;
 use App\Http\Controllers\FolderController;
 use App\Http\Controllers\GeneralFolderController;
+use App\Http\Controllers\RequestItemReviewController;
 use App\Http\Controllers\RequestItemUploadController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\TrashController;
@@ -97,6 +98,9 @@ Route::middleware(['auth', EnsureAccountHasAccess::class])->group(function () {
                     Route::get('/permintaan/{documentRequest}', [DocumentRequestController::class, 'show'])
                         ->whereNumber('documentRequest')
                         ->name('permintaan.show');
+                    Route::post('/permintaan/{documentRequest}/slot/{item}/periksa', [RequestItemReviewController::class, 'store'])
+                        ->whereNumber(['documentRequest', 'item'])
+                        ->name('permintaan.slot.periksa');
                 });
 
             // H-08 Permintaan untuk Unit Saya (PIC Unit). Scoped binding: slot dari permintaan lain menghasilkan 404.

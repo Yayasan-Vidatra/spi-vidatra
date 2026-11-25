@@ -28,7 +28,9 @@ export default function Index({ unit, documentRequests }) {
                             </div>
                             <div className="flex flex-wrap items-center gap-2 text-sm">
                                 <span>
-                                    {documentRequest.pending_count} dari {documentRequest.item_count} dokumen belum diunggah
+                                    {documentRequest.pending_count === 0
+                                        ? 'Semua dokumen sudah diunggah'
+                                        : `${documentRequest.pending_count} dari ${documentRequest.item_count} dokumen belum diunggah`}
                                 </span>
                                 {documentRequest.overdue_count > 0 && (
                                     <span className="rounded border border-red-300 bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-900">
