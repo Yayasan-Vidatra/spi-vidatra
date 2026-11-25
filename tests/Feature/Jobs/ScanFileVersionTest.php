@@ -3,16 +3,23 @@
 namespace Tests\Feature\Jobs;
 
 use App\Enums\AuditAction;
+use App\Enums\RequestItemStatus;
 use App\Enums\ScanStatus;
 use App\Jobs\ScanFileVersion;
 use App\Models\AuditLog;
+use App\Models\DocumentRequest;
 use App\Models\File;
+use App\Models\FileVersion;
 use App\Models\Folder;
+use App\Models\RequestItem;
+use App\Models\Unit;
 use App\Models\User;
+use App\Notifications\RequestItemInfected;
 use App\Services\Scanning\ClamAvScanner;
 use App\Services\Scanning\ScanFailedException;
 use App\Services\Scanning\VirusScanner;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\Process\Process;
 use Tests\Concerns\AssertsAuditLog;
@@ -136,5 +143,75 @@ class ScanFileVersionTest extends TestCase
         $version = $file->currentVersion->fresh();
         $this->assertStringStartsWith('karantina/', $version->storage_path);
         $this->assertStringNotContainsString('isi asli rahasia', $this->storedBytes($version));
+    }
+
+    /**
+     * @return array{RequestItem, File}
+     */
+    private function uploadedSlot(): array
+    {
+        $unit = Unit::query()->where('code', 'SMP')->sole();
+        $documentRequest = DocumentRequest::factory()->create(['unit_id' => $unit->id]);
+        $file = $this->storedFile($documentRequest->folder, User::factory()->picOf($unit)->create(), ScanStatus::Menunggu);
+        $item = RequestItem::factory()->for($documentRequest)->withStatus(RequestItemStatus::Diunggah)->create([
+            'file_id' => $file->id,
+            'reviewer_note' => 'Catatan auditor sebelumnya',
+        ]);
+
+        return [$item, $file];
+    }
+
+    public function test_infected_slot_upload_returns_the_slot_to_perlu_perbaikan_with_a_system_note(): void
+    {
+        Notification::fake();
+        $this->fakeFileDisk();
+        $this->app->instance(VirusScanner::class, FakeVirusScanner::infected());
+        [$item, $file] = $this->uploadedSlot();
+        $pics = User::query()->where('unit_id', $item->documentRequest->unit_id)->get();
+        $otherUnitPic = User::factory()->picOf(Unit::query()->where('code', 'SD')->sole())->create();
+
+        ScanFileVersion::dispatchSync($file->currentVersion);
+
+        $item->refresh();
+        $this->assertSame(RequestItemStatus::PerluPerbaikan, $item->status);
+        $this->assertSame(RequestItem::InfectedSystemNote, $item->system_note);
+        $this->assertSame('Catatan auditor sebelumnya', $item->reviewer_note);
+        $log = $this->assertAuditLogged(AuditAction::RequestItemInfected, $item, [
+            'document_request_id' => $item->document_request_id,
+            'name' => $item->name,
+            'version' => 1,
+            'version_id' => $file->current_version_id,
+            'note_source' => 'sistem',
+        ]);
+        $this->assertNull($log->user_id);
+        Notification::assertSentTo($pics, RequestItemInfected::class);
+        Notification::assertNotSentTo($otherUnitPic, RequestItemInfected::class);
+    }
+
+    public function test_scanner_failure_keeps_the_slot_waiting_for_the_scan(): void
+    {
+        $this->fakeFileDisk();
+        $this->app->instance(VirusScanner::class, FakeVirusScanner::failing());
+        [$item, $file] = $this->uploadedSlot();
+
+        $this->assertThrows(fn () => ScanFileVersion::dispatchSync($file->currentVersion), ScanFailedException::class);
+
+        $this->assertSame(RequestItemStatus::Diunggah, $item->fresh()->status);
+        $this->assertNull($item->fresh()->system_note);
+    }
+
+    public function test_infected_older_version_does_not_change_a_slot_that_already_has_a_newer_upload(): void
+    {
+        $this->fakeFileDisk();
+        $this->app->instance(VirusScanner::class, FakeVirusScanner::infected());
+        [$item, $file] = $this->uploadedSlot();
+        $olderVersion = $file->currentVersion;
+        $newerVersion = FileVersion::factory()->for($file)->create(['version_number' => 2, 'scan_status' => ScanStatus::Menunggu]);
+        $file->forceFill(['current_version_id' => $newerVersion->id])->save();
+
+        ScanFileVersion::dispatchSync($olderVersion);
+
+        $this->assertSame(RequestItemStatus::Diunggah, $item->fresh()->status);
+        $this->assertDatabaseMissing('audit_logs', ['action' => AuditAction::RequestItemInfected->value]);
     }
 }

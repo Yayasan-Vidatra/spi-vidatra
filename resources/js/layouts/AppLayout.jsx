@@ -17,6 +17,11 @@ export default function AppLayout({ children }) {
                                 Penugasan
                             </Link>
                         )}
+                        {auth.can?.viewUnitRequests && (
+                            <Link href="/permintaan-unit" className="text-sm font-medium text-gray-700 hover:text-gray-900">
+                                Permintaan untuk Unit
+                            </Link>
+                        )}
                         {auth.can?.viewGeneralFolders && (
                             <Link href="/folder-umum" className="text-sm font-medium text-gray-700 hover:text-gray-900">
                                 Regulasi dan Templat

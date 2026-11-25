@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Enums\FolderPurpose;
+use App\Enums\RoleSlug;
 use App\Models\Assignment;
 use App\Models\DocumentRequest;
 use App\Models\User;
@@ -25,6 +26,22 @@ class DocumentRequestPolicy
     public function view(User $user, DocumentRequest $documentRequest): bool
     {
         return Gate::forUser($user)->allows('view', $documentRequest->assignment);
+    }
+
+    /**
+     * H-08 Permintaan untuk Unit Saya: PIC Unit yang sudah punya unit (US-16).
+     */
+    public function viewAnyForUnit(User $user): bool
+    {
+        return $user->hasRole(RoleSlug::PicUnit) && $user->unit_id !== null;
+    }
+
+    /**
+     * PIC hanya melihat permintaan untuk unitnya sendiri (US-16).
+     */
+    public function viewForUnit(User $user, DocumentRequest $documentRequest): bool
+    {
+        return $this->viewAnyForUnit($user) && $user->unit_id === $documentRequest->unit_id;
     }
 
     /**

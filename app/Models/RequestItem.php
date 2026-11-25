@@ -17,6 +17,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable(['name', 'description', 'accepted_extensions'])]
 class RequestItem extends Model
 {
+    /**
+     * Catatan sistem saat unggahan terdeteksi virus (US-16); disimpan di system_note, bukan reviewer_note.
+     */
+    public const string InfectedSystemNote = 'Berkas terdeteksi virus dan dikarantina. Unggah ulang berkas yang bersih.';
+
     /** @use HasFactory<RequestItemFactory> */
     use HasFactory;
 
@@ -114,6 +119,23 @@ class RequestItem extends Model
                 fn (array $group): bool => array_intersect($group['extensions'], $this->accepted_extensions) !== [],
             ),
         ));
+    }
+
+    /**
+     * The name of the slot file for an upload with the given extension: the document name, so every
+     * re-upload stays one file whatever the unit named it, with the extension of the latest version.
+     */
+    public function slotFileName(string $extension): string
+    {
+        return $this->name.'.'.strtolower($extension);
+    }
+
+    /**
+     * Whether the latest upload arrived after the deadline ("diunggah terlambat").
+     */
+    public function isSubmittedLate(): bool
+    {
+        return $this->submitted_at !== null && $this->submitted_at->greaterThan($this->documentRequest->dueAt());
     }
 
     /**

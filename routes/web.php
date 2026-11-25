@@ -13,11 +13,13 @@ use App\Http\Controllers\FileVersionController;
 use App\Http\Controllers\FolderArchiveController;
 use App\Http\Controllers\FolderController;
 use App\Http\Controllers\GeneralFolderController;
+use App\Http\Controllers\RequestItemUploadController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\TrashController;
 use App\Http\Controllers\TwoFactorChallengeController;
 use App\Http\Controllers\TwoFactorRecoveryCodeController;
 use App\Http\Controllers\TwoFactorSetupController;
+use App\Http\Controllers\UnitDocumentRequestController;
 use App\Http\Middleware\EnsureAccountHasAccess;
 use App\Http\Middleware\EnsureConfidentialityStatementAccepted;
 use App\Http\Middleware\EnsureTwoFactorIsVerified;
@@ -95,6 +97,20 @@ Route::middleware(['auth', EnsureAccountHasAccess::class])->group(function () {
                     Route::get('/permintaan/{documentRequest}', [DocumentRequestController::class, 'show'])
                         ->whereNumber('documentRequest')
                         ->name('permintaan.show');
+                });
+
+            // H-08 Permintaan untuk Unit Saya (PIC Unit). Scoped binding: slot dari permintaan lain menghasilkan 404.
+            Route::get('/permintaan-unit', [UnitDocumentRequestController::class, 'index'])->name('permintaan-unit.index');
+            Route::prefix('permintaan-unit/{documentRequest}')
+                ->whereNumber('documentRequest')
+                ->name('permintaan-unit.')
+                ->scopeBindings()
+                ->group(function () {
+                    Route::get('/', [UnitDocumentRequestController::class, 'show'])->name('show');
+                    Route::post('/slot/{item}', [RequestItemUploadController::class, 'store'])
+                        ->whereNumber('item')
+                        ->middleware('throttle:berkas-unggah')
+                        ->name('slot.unggah');
                 });
 
             Route::get('/folder-umum', [GeneralFolderController::class, 'index'])->name('folder-umum.index');

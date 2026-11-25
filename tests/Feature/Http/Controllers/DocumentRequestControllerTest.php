@@ -190,6 +190,7 @@ class DocumentRequestControllerTest extends TestCase
             'name used by another document, ignoring case' => [['name' => 'LAPORAN KAS OKTOBER', 'formats' => ['pdf']], 'items.1.name', 'Nama dokumen ke-2 sama dengan dokumen lain di permintaan ini.'],
             'document without a format' => [['name' => 'Rekap', 'formats' => []], 'items.1.formats', 'Pilih minimal satu format untuk dokumen ke-2.'],
             'unknown format group' => [['name' => 'Rekap', 'formats' => ['exe']], 'items.1.formats.0', 'Format dokumen tidak dikenali.'],
+            'format chosen twice' => [['name' => 'Rekap', 'formats' => ['pdf', 'pdf']], 'items.1.formats.1', 'Format yang sama dipilih lebih dari sekali untuk dokumen ke-2.'],
         ];
     }
 

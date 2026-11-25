@@ -89,7 +89,7 @@ class DocumentRequestController extends Controller
         $documentRequest->setRelation('assignment', $assignment);
         Gate::authorize('view', $documentRequest);
 
-        $documentRequest->load(['unit', 'creator', 'items']);
+        $documentRequest->load(['unit', 'creator', 'items.file.currentVersion.uploader']);
 
         return Inertia::render('Permintaan/Show', [
             'assignment' => $this->assignmentData($assignment),
@@ -114,6 +114,18 @@ class DocumentRequestController extends Controller
                     'status' => $item->status->value,
                     'status_label' => $item->status->label(),
                     'is_overdue' => $item->isOverdue(),
+                    'is_submitted_late' => $item->isSubmittedLate(),
+                    'submitted_at' => $item->submitted_at?->toIso8601String(),
+                    'reviewer_note' => $item->reviewer_note,
+                    'system_note' => $item->system_note,
+                    'file' => $item->file === null ? null : [
+                        'id' => $item->file->id,
+                        'name' => $item->file->original_name,
+                        'version_number' => $item->file->currentVersion?->version_number,
+                        'uploader' => $item->file->currentVersion?->uploader->name,
+                        'scan_status' => $item->file->currentVersion?->scan_status->value,
+                        'scan_status_label' => $item->file->currentVersion?->scan_status->label(),
+                    ],
                 ];
             }),
         ]);

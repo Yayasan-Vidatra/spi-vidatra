@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Assignment;
+use App\Models\DocumentRequest;
 use App\Models\File;
 use App\Models\Folder;
 use Illuminate\Http\Request;
@@ -52,6 +53,7 @@ class HandleInertiaRequests extends Middleware
                     'viewAssignments' => (bool) $user?->can('viewAny', Assignment::class),
                     'viewGeneralFolders' => (bool) $user?->can('viewAnyGeneral', Folder::class),
                     'searchFiles' => (bool) $user?->can('viewAny', File::class),
+                    'viewUnitRequests' => (bool) $user?->can('viewAnyForUnit', DocumentRequest::class),
                 ],
             ],
         ];

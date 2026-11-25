@@ -15,7 +15,7 @@ function listError(errors, prefix) {
     return errors[prefix] ?? Object.entries(errors).find(([key]) => key.startsWith(`${prefix}.`))?.[1];
 }
 
-function ItemFields({ index, formatGroups, errors, canRemove, onRemove }) {
+function ItemFields({ index, formatGroups, selectedFormats, onToggleFormat, errors, canRemove, onRemove }) {
     const prefix = `items[${index}]`;
 
     return (
@@ -50,7 +50,13 @@ function ItemFields({ index, formatGroups, errors, canRemove, onRemove }) {
                 <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
                     {formatGroups.map((group) => (
                         <label key={group.key} className="flex items-center gap-1.5 text-sm">
-                            <input type="checkbox" name={`${prefix}[formats][]`} value={group.key} />
+                            <input
+                                type="checkbox"
+                                name={`${prefix}[formats][]`}
+                                value={group.key}
+                                checked={selectedFormats.includes(group.key)}
+                                onChange={(event) => onToggleFormat(group.key, event.target.checked)}
+                            />
                             {group.label}
                             <span className="text-xs text-gray-500">({group.extensions.map((extension) => `.${extension}`).join(', ')})</span>
                         </label>
@@ -67,14 +73,29 @@ function ItemFields({ index, formatGroups, errors, canRemove, onRemove }) {
  */
 export default function Buat({ assignment, units, defaultUnitId, formatGroups, maxItems, today }) {
     const nextRowId = useRef(1);
-    const [rowIds, setRowIds] = useState([0]);
+    const [rows, setRows] = useState([{ id: 0, formats: [] }]);
 
     const addRow = () => {
-        setRowIds((ids) => [...ids, nextRowId.current++]);
+        setRows((current) => [...current, { id: nextRowId.current++, formats: [] }]);
     };
 
     const removeRow = (rowId) => {
-        setRowIds((ids) => ids.filter((id) => id !== rowId));
+        setRows((current) => current.filter((row) => row.id !== rowId));
+    };
+
+    // Each format is kept at most once per row, however often its checkbox fires.
+    const toggleFormat = (rowId, formatKey, isChecked) => {
+        setRows((current) =>
+            current.map((row) => {
+                if (row.id !== rowId) {
+                    return row;
+                }
+
+                const others = row.formats.filter((key) => key !== formatKey);
+
+                return { ...row, formats: isChecked ? [...others, formatKey] : others };
+            }),
+        );
     };
 
     return (
@@ -119,18 +140,20 @@ export default function Buat({ assignment, units, defaultUnitId, formatGroups, m
 
                             <div className="space-y-3">
                                 <p className="text-sm font-medium">Dokumen yang diminta</p>
-                                {rowIds.map((rowId, index) => (
+                                {rows.map((row, index) => (
                                     <ItemFields
-                                        key={rowId}
+                                        key={row.id}
                                         index={index}
                                         formatGroups={formatGroups}
+                                        selectedFormats={row.formats}
+                                        onToggleFormat={(formatKey, isChecked) => toggleFormat(row.id, formatKey, isChecked)}
                                         errors={errors}
-                                        canRemove={rowIds.length > 1}
-                                        onRemove={() => removeRow(rowId)}
+                                        canRemove={rows.length > 1}
+                                        onRemove={() => removeRow(row.id)}
                                     />
                                 ))}
                                 <FieldError message={errors.items} />
-                                {rowIds.length < maxItems && (
+                                {rows.length < maxItems && (
                                     <button type="button" onClick={addRow} className="rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-gray-100">
                                         Tambah dokumen
                                     </button>

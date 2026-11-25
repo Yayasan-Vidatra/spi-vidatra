@@ -35,6 +35,8 @@ enum AuditAction: string
     case FileRestored = 'berkas.dipulihkan';
     case FilePurged = 'berkas.dihapus_permanen';
     case DocumentRequestCreated = 'permintaan.dibuat';
+    case RequestItemUploaded = 'permintaan.slot_diunggah';
+    case RequestItemInfected = 'permintaan.slot_terinfeksi';
 
     /**
      * Label aksi berkas untuk riwayat akses di H-06.
