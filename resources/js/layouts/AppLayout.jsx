@@ -12,6 +12,16 @@ export default function AppLayout({ children }) {
                         <Link href="/dasbor" className="text-lg font-semibold">
                             Folder Kerja SPI
                         </Link>
+                        {auth.user && (
+                            <Link href="/dasbor" className="text-sm font-medium text-gray-700 hover:text-gray-900">
+                                Dasbor
+                                {auth.user.unread_notification_count > 0 && (
+                                    <span className="ml-1 rounded-full bg-red-600 px-1.5 py-0.5 text-xs text-white">
+                                        {auth.user.unread_notification_count}
+                                    </span>
+                                )}
+                            </Link>
+                        )}
                         {auth.can?.viewAssignments && (
                             <Link href="/penugasan" className="text-sm font-medium text-gray-700 hover:text-gray-900">
                                 Penugasan

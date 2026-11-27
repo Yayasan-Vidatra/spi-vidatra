@@ -6,6 +6,7 @@ use App\Http\Controllers\AssignmentMemberController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\GoogleController;
 use App\Http\Controllers\ConfidentialityStatementController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentRequestController;
 use App\Http\Controllers\DocumentRequestDueDateController;
 use App\Http\Controllers\FileContentController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\FileVersionController;
 use App\Http\Controllers\FolderArchiveController;
 use App\Http\Controllers\FolderController;
 use App\Http\Controllers\GeneralFolderController;
+use App\Http\Controllers\NotificationReadController;
 use App\Http\Controllers\RequestItemReviewController;
 use App\Http\Controllers\RequestItemUploadController;
 use App\Http\Controllers\SearchController;
@@ -66,7 +68,11 @@ Route::middleware(['auth', EnsureAccountHasAccess::class])->group(function () {
             ->name('kerahasiaan.store');
 
         Route::middleware(EnsureConfidentialityStatementAccepted::class)->group(function () {
-            Route::inertia('/dasbor', 'Dasbor')->name('dasbor');
+            Route::get('/dasbor', [DashboardController::class, 'show'])->name('dasbor');
+            Route::post('/notifikasi/dibaca', [NotificationReadController::class, 'storeAll'])->name('notifikasi.dibaca-semua');
+            Route::post('/notifikasi/{notification}/dibaca', [NotificationReadController::class, 'store'])
+                ->whereUuid('notification')
+                ->name('notifikasi.dibaca');
 
             Route::get('/penugasan', [AssignmentController::class, 'index'])->name('penugasan.index');
             Route::get('/penugasan/buat', [AssignmentController::class, 'create'])->name('penugasan.create');

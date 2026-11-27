@@ -48,6 +48,7 @@ class HandleInertiaRequests extends Middleware
                     'name' => $user->name,
                     'email' => $user->email,
                     'role' => $user->role?->name,
+                    'unread_notification_count' => $user->unreadNotifications()->count(),
                 ],
                 'can' => [
                     'viewAssignments' => (bool) $user?->can('viewAny', Assignment::class),
