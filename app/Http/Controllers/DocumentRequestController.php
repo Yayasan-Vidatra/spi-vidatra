@@ -6,8 +6,10 @@ use App\Actions\CreateDocumentRequest;
 use App\Enums\RequestItemStatus;
 use App\Http\Requests\ReviewRequestItemRequest;
 use App\Http\Requests\StoreDocumentRequestRequest;
+use App\Http\Requests\UpdateDocumentRequestDueDateRequest;
 use App\Models\Assignment;
 use App\Models\DocumentRequest;
+use App\Models\Holiday;
 use App\Models\RequestItem;
 use App\Models\Unit;
 use Illuminate\Http\RedirectResponse;
@@ -74,6 +76,7 @@ class DocumentRequestController extends Controller
                 ->values(),
             'maxItems' => StoreDocumentRequestRequest::MaxItems,
             'today' => now(config('app.business_timezone'))->toDateString(),
+            'holidays' => Holiday::upcomingDescriptions(),
         ]);
     }
 
@@ -93,10 +96,14 @@ class DocumentRequestController extends Controller
 
         $documentRequest->load(['unit', 'creator', 'folder', 'items.file.currentVersion.uploader', 'items.reviewer', 'items.evidenceFile']);
         $user = $request->user();
+        $canUpdateDueDate = $user->can('updateDueDate', $documentRequest);
 
         return Inertia::render('Permintaan/Show', [
             'assignment' => $this->assignmentData($assignment),
             'maxNoteLength' => ReviewRequestItemRequest::MaxNoteLength,
+            'maxReasonLength' => UpdateDocumentRequestDueDateRequest::MaxReasonLength,
+            'today' => now(config('app.business_timezone'))->toDateString(),
+            'holidays' => $canUpdateDueDate ? Holiday::upcomingDescriptions() : [],
             'documentRequest' => [
                 'id' => $documentRequest->id,
                 'number' => $documentRequest->sequence_number,
@@ -106,6 +113,8 @@ class DocumentRequestController extends Controller
                 'status_label' => $documentRequest->status->label(),
                 'creator' => $documentRequest->creator->name,
                 'created_at' => $documentRequest->created_at->toIso8601String(),
+                'due_date_changed_at' => $documentRequest->due_date_changed_at?->toIso8601String(),
+                'can' => ['updateDueDate' => $canUpdateDueDate],
             ],
             'items' => $documentRequest->items->map(function (RequestItem $item) use ($documentRequest, $user): array {
                 $item->setRelation('documentRequest', $documentRequest);

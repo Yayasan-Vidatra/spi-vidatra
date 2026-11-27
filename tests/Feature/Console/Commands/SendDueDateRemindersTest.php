@@ -2,9 +2,13 @@
 
 namespace Tests\Feature\Console\Commands;
 
+use App\Enums\FolderPurpose;
 use App\Enums\RequestItemStatus;
+use App\Enums\RoleSlug;
 use App\Models\Assignment;
+use App\Models\AssignmentMember;
 use App\Models\DocumentRequest;
+use App\Models\Folder;
 use App\Models\RequestItem;
 use App\Models\User;
 use App\Notifications\DocumentRequestDueSoon;
@@ -13,10 +17,12 @@ use Carbon\CarbonImmutable;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Tests\Concerns\InteractsWithRoles;
 use Tests\TestCase;
 
 class SendDueDateRemindersTest extends TestCase
 {
+    use InteractsWithRoles;
     use LazilyRefreshDatabase;
 
     private function travelToMorning(string $date): void
@@ -175,6 +181,46 @@ class SendDueDateRemindersTest extends TestCase
         foreach ([$allUploaded, $closedAssignment, $completed, $pastDue] as $documentRequest) {
             $this->assertNull($documentRequest->fresh()->due_today_reminded_at);
         }
+    }
+
+    public function test_deadline_changed_on_or_after_its_h3_date_gets_no_h3_but_still_gets_the_due_today_reminder(): void
+    {
+        Notification::fake();
+        // Tenggat diubah Kamis 8 April menjadi Senin 12 April, yang H-3-nya Rabu 7 April.
+        [$documentRequest, $pic] = $this->requestDueOn('2027-04-12');
+        $documentRequest->forceFill(['due_date_changed_at' => CarbonImmutable::parse('2027-04-08 10:00', config('app.business_timezone'))])->save();
+
+        $this->travelToMorning('2027-04-09');
+        $this->artisan('permintaan:kirim-pengingat')->assertSuccessful();
+        Notification::assertNothingSent();
+
+        $this->travelToMorning('2027-04-12');
+        $this->artisan('permintaan:kirim-pengingat')->assertSuccessful();
+        Notification::assertSentTo($pic, DocumentRequestDueToday::class);
+    }
+
+    public function test_deadline_changed_before_its_h3_date_gets_the_h3_reminder_again(): void
+    {
+        Notification::fake();
+        [$documentRequest, $pic] = $this->requestDueOn('2027-04-12');
+        $this->travelToMorning('2027-04-07');
+        $this->artisan('permintaan:kirim-pengingat')->assertSuccessful();
+
+        // Auditor memperpanjang tenggat ke Senin 19 April lewat H-07; H-3 barunya Rabu 14 April.
+        $auditor = User::factory()->withRole(RoleSlug::AuditorSpi)->withTwoFactor()->acceptedConfidentiality()->create();
+        AssignmentMember::factory()->for($documentRequest->assignment)->create(['user_id' => $auditor->id]);
+        Folder::factory()->for($documentRequest->assignment)->forPurpose(FolderPurpose::PermintaanDokumen)->create();
+        $this->actingAsVerified($auditor)
+            ->patch(route('penugasan.permintaan.tenggat.update', [$documentRequest->assignment, $documentRequest]), ['due_date' => '2027-04-19', 'reason' => 'Diperpanjang.'])
+            ->assertSessionHasNoErrors();
+
+        $this->travelToMorning('2027-04-13');
+        $this->artisan('permintaan:kirim-pengingat')->assertSuccessful();
+        Notification::assertSentToTimes($pic, DocumentRequestDueSoon::class, 1);
+
+        $this->travelToMorning('2027-04-14');
+        $this->artisan('permintaan:kirim-pengingat')->assertSuccessful();
+        Notification::assertSentToTimes($pic, DocumentRequestDueSoon::class, 2);
     }
 
     public function test_command_is_scheduled_every_morning_in_the_business_timezone(): void

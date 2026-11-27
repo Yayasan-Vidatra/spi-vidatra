@@ -20,8 +20,8 @@ use Illuminate\Support\Facades\Notification;
  * Pengingat tenggat ke PIC unit (US-18): H-3, yaitu 3 hari kerja sebelum tenggat, dan hari-H. Hanya untuk
  * permintaan Terbuka di penugasan yang belum ditutup dan masih punya slot Menunggu atau Perlu Perbaikan.
  * Masing-masing terkirim sekali, dijaga kolom *_reminded_at yang dikosongkan lagi saat tenggat diubah. Bila
- * jadwal sempat terlewat, H-3 dikirim menyusul selama tenggat belum tiba, kecuali permintaan dibuat pada atau
- * setelah tanggal H-3-nya (tenggat kurang dari 3 hari kerja); hari-H tetap dikirim. Dijalankan scheduler setiap pagi.
+ * jadwal sempat terlewat, H-3 dikirim menyusul selama tenggat belum tiba, kecuali tenggat dibuat atau diubah
+ * pada atau setelah tanggal H-3-nya (kurang dari 3 hari kerja); hari-H tetap dikirim. Dijalankan scheduler setiap pagi.
  */
 #[Signature('permintaan:kirim-pengingat')]
 #[Description('Mengirim pengingat tenggat H-3 dan hari-H ke PIC unit')]
@@ -55,11 +55,11 @@ class SendDueDateReminders extends Command
 
                 if (! $isDueToday) {
                     $dueSoonDate = $calendar->subWorkingDays($documentRequest->due_date, 3);
-                    $createdOn = CarbonImmutable::instance($documentRequest->created_at)->setTimezone(config('app.business_timezone'))->startOfDay();
+                    $dueDateSetOn = CarbonImmutable::instance($documentRequest->dueDateSetAt())->setTimezone(config('app.business_timezone'))->startOfDay();
 
-                    // Belum H-3, atau permintaan dibuat pada/setelah H-3-nya: notifikasi permintaan baru sudah jadi
-                    // pemberitahuan pertama, jadi H-3 tidak dikirim menyusul.
-                    if ($dueSoonDate->greaterThan($today) || $createdOn->greaterThanOrEqualTo($dueSoonDate)) {
+                    // Belum H-3, atau tenggat dibuat/diubah pada atau setelah H-3-nya: notifikasi permintaan baru atau
+                    // ubah tenggat sudah jadi pemberitahuan pertama, jadi H-3 tidak dikirim menyusul.
+                    if ($dueSoonDate->greaterThan($today) || $dueDateSetOn->greaterThanOrEqualTo($dueSoonDate)) {
                         return;
                     }
                 }

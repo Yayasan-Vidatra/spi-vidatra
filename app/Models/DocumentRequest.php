@@ -39,6 +39,7 @@ class DocumentRequest extends Model
             'status' => DocumentRequestStatus::class,
             'sequence_number' => 'integer',
             'due_date' => 'date',
+            'due_date_changed_at' => 'datetime',
             'due_soon_reminded_at' => 'datetime',
             'due_today_reminded_at' => 'datetime',
         ];
@@ -101,6 +102,14 @@ class DocumentRequest extends Model
     public function charterDeadline(WorkingCalendar $calendar): CarbonImmutable
     {
         return $calendar->addWorkingDays($this->due_date, self::CharterEscalationWorkingDays);
+    }
+
+    /**
+     * The moment the current deadline was set: when it was last changed, otherwise when the request was created.
+     */
+    public function dueDateSetAt(): CarbonInterface
+    {
+        return $this->due_date_changed_at ?? $this->created_at;
     }
 
     public function isPastDue(?CarbonInterface $now = null): bool

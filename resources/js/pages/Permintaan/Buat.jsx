@@ -1,5 +1,6 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import { useRef, useState } from 'react';
+import DueDateWarning from '../../components/DueDateWarning';
 import AppLayout from '../../layouts/AppLayout';
 
 const inputClass = 'mt-1 w-full rounded-md border px-3 py-2 text-sm';
@@ -71,8 +72,9 @@ function ItemFields({ index, formatGroups, selectedFormats, onToggleFormat, erro
 /**
  * H-07 Buat Permintaan (US-15): unit tujuan, tenggat, dan daftar dokumen dengan format yang diterima.
  */
-export default function Buat({ assignment, units, defaultUnitId, formatGroups, maxItems, today }) {
+export default function Buat({ assignment, units, defaultUnitId, formatGroups, maxItems, today, holidays }) {
     const nextRowId = useRef(1);
+    const [dueDate, setDueDate] = useState('');
     const [rows, setRows] = useState([{ id: 0, formats: [] }]);
 
     const addRow = () => {
@@ -132,8 +134,16 @@ export default function Buat({ assignment, units, defaultUnitId, formatGroups, m
                                     <label htmlFor="due_date" className="text-sm font-medium">
                                         Tenggat
                                     </label>
-                                    <input id="due_date" name="due_date" type="date" min={today} className={inputClass} />
+                                    <input
+                                        id="due_date"
+                                        name="due_date"
+                                        type="date"
+                                        min={today}
+                                        onChange={(event) => setDueDate(event.target.value)}
+                                        className={inputClass}
+                                    />
                                     <p className="mt-1 text-xs text-gray-500">Berlaku sampai pukul 23.59 WITA.</p>
+                                    <DueDateWarning date={dueDate} holidays={holidays} />
                                     <FieldError message={errors.due_date} />
                                 </div>
                             </div>

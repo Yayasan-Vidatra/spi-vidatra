@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\GoogleController;
 use App\Http\Controllers\ConfidentialityStatementController;
 use App\Http\Controllers\DocumentRequestController;
+use App\Http\Controllers\DocumentRequestDueDateController;
 use App\Http\Controllers\FileContentController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\FileVersionController;
@@ -98,6 +99,9 @@ Route::middleware(['auth', EnsureAccountHasAccess::class])->group(function () {
                     Route::get('/permintaan/{documentRequest}', [DocumentRequestController::class, 'show'])
                         ->whereNumber('documentRequest')
                         ->name('permintaan.show');
+                    Route::patch('/permintaan/{documentRequest}/tenggat', [DocumentRequestDueDateController::class, 'update'])
+                        ->whereNumber('documentRequest')
+                        ->name('permintaan.tenggat.update');
                     Route::post('/permintaan/{documentRequest}/slot/{item}/periksa', [RequestItemReviewController::class, 'store'])
                         ->whereNumber(['documentRequest', 'item'])
                         ->name('permintaan.slot.periksa');

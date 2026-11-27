@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Enums\DocumentRequestStatus;
 use App\Enums\FolderPurpose;
 use App\Enums\RoleSlug;
 use App\Models\Assignment;
@@ -42,6 +43,16 @@ class DocumentRequestPolicy
     public function viewForUnit(User $user, DocumentRequest $documentRequest): bool
     {
         return $this->viewAnyForUnit($user) && $user->unit_id === $documentRequest->unit_id;
+    }
+
+    /**
+     * Ubah tenggat (US-18, keputusan 5): untuk sementara Dewan Pengawas dan auditor yang ditunjuk, dengan syarat
+     * yang sama seperti membuat permintaan, selama permintaan masih Terbuka. Pengalihan ke Kepala SPI di Langkah 2b.
+     */
+    public function updateDueDate(User $user, DocumentRequest $documentRequest): bool
+    {
+        return $documentRequest->status === DocumentRequestStatus::Terbuka
+            && $this->create($user, $documentRequest->assignment);
     }
 
     /**

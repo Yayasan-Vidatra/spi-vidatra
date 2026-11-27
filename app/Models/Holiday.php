@@ -29,4 +29,19 @@ class Holiday extends Model
             'type' => HolidayType::class,
         ];
     }
+
+    /**
+     * Holidays from today on, keyed by date, so date fields can warn about a deadline on a holiday.
+     *
+     * @return array<string, string>
+     */
+    public static function upcomingDescriptions(): array
+    {
+        return self::query()
+            ->whereDate('date', '>=', now(config('app.business_timezone'))->toDateString())
+            ->orderBy('date')
+            ->get()
+            ->mapWithKeys(fn (self $holiday): array => [$holiday->date->toDateString() => $holiday->description])
+            ->all();
+    }
 }
