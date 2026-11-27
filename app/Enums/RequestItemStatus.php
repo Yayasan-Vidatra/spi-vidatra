@@ -24,6 +24,18 @@ enum RequestItemStatus: string
     }
 
     /**
+     * Who holds up a slot that is not yet Diterima, shown in escalations to Dewan Pengawas (UC-17).
+     */
+    public function holdLabel(): ?string
+    {
+        return match ($this) {
+            self::Menunggu, self::PerluPerbaikan => 'tertahan di unit',
+            self::Diunggah => 'tertahan di SPI',
+            self::Diterima => null,
+        };
+    }
+
+    /**
      * Whether the unit still owes an upload for the slot, so the slot counts as late once the deadline passes.
      */
     public function awaitsUpload(): bool

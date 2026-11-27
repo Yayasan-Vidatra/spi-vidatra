@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\EscalationType;
 use App\Enums\RequestItemStatus;
 use Carbon\CarbonInterface;
 use Database\Factories\RequestItemFactory;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 
 /**
  * Slot unggah untuk satu dokumen yang diminta (US-15 sampai US-17). Status, berkas slot, hasil periksa, dan
@@ -86,6 +88,16 @@ class RequestItem extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewed_by');
+    }
+
+    /**
+     * Eskalasi slot ke Dewan Pengawas bila belum Diterima 10 hari kerja setelah tenggat (F-21); paling banyak satu.
+     *
+     * @return MorphOne<Escalation, $this>
+     */
+    public function escalation(): MorphOne
+    {
+        return $this->morphOne(Escalation::class, 'subject')->where('type', EscalationType::PermintaanDokumen);
     }
 
     /**

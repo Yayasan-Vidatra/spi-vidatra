@@ -5,6 +5,7 @@ namespace Tests\Feature\Http\Controllers;
 use App\Actions\ReviewRequestItem;
 use App\Enums\AuditAction;
 use App\Enums\DocumentRequestStatus;
+use App\Enums\EscalationStatus;
 use App\Enums\RequestItemStatus;
 use App\Enums\RoleSlug;
 use App\Enums\ScanStatus;
@@ -12,6 +13,7 @@ use App\Jobs\CopyAcceptedRequestItem;
 use App\Jobs\ScanFileVersion;
 use App\Models\Assignment;
 use App\Models\DocumentRequest;
+use App\Models\Escalation;
 use App\Models\FileVersion;
 use App\Models\RequestItem;
 use App\Models\Unit;
@@ -143,6 +145,38 @@ class RequestItemReviewControllerTest extends TestCase
         $this->assertTrue($pic->can('upload', $item));
         Notification::assertSentTo($pic, RequestItemReviewed::class);
         $this->assertStringContainsString('meminta perbaikan untuk "Laporan kas Oktober"', (new RequestItemReviewed($item))->toArray($pic)['message']);
+    }
+
+    public function test_accepting_an_escalated_slot_resolves_its_escalation(): void
+    {
+        $this->freezeSecond();
+        $item = $this->uploadedSlot();
+        $escalation = Escalation::factory()->create(['subject_id' => $item->id, 'escalated_at' => now()->subDays(2)]);
+
+        $this->actingAsVerified($this->auditor)->post($this->reviewUrl($item), $this->payload($item))->assertSessionHasNoErrors();
+
+        $escalation->refresh();
+        $this->assertSame(EscalationStatus::Selesai, $escalation->status);
+        $this->assertEquals(now(), $escalation->resolved_at);
+        $this->assertAuditLogged(AuditAction::RequestItemEscalationResolved, $item, [
+            'escalation_id' => $escalation->id,
+            'document_request_id' => $this->documentRequest->id,
+            'name' => 'Laporan kas Oktober',
+            'escalated_at' => now()->subDays(2)->toIso8601String(),
+        ], $this->auditor);
+    }
+
+    public function test_perlu_perbaikan_keeps_the_escalation_forwarded(): void
+    {
+        $item = $this->uploadedSlot();
+        $escalation = Escalation::factory()->create(['subject_id' => $item->id]);
+
+        $this->actingAsVerified($this->auditor)
+            ->post($this->reviewUrl($item), $this->payload($item, RequestItemStatus::PerluPerbaikan, 'Kurang tanda tangan.'))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(EscalationStatus::Diteruskan, $escalation->fresh()->status);
+        $this->assertNull($escalation->fresh()->resolved_at);
     }
 
     public function test_dewan_pengawas_can_review(): void

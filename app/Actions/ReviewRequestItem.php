@@ -4,6 +4,7 @@ namespace App\Actions;
 
 use App\Enums\AuditAction;
 use App\Enums\DocumentRequestStatus;
+use App\Enums\EscalationStatus;
 use App\Enums\RequestItemStatus;
 use App\Jobs\CopyAcceptedRequestItem;
 use App\Models\DocumentRequest;
@@ -20,7 +21,8 @@ use Illuminate\Validation\ValidationException;
 /**
  * Auditor menandai slot Diterima atau Perlu Perbaikan dengan catatan (US-17, UC-08). Diterima bersifat final:
  * slot terkunci untuk PIC dan versi yang diterima disalin ke "04 Bukti Unit" oleh job antrean. Permintaan
- * menjadi Selesai saat semua slotnya Diterima. PIC unit diberi tahu hasilnya setelah commit.
+ * menjadi Selesai saat semua slotnya Diterima, dan eskalasi slot ke Dewan Pengawas, bila ada, selesai. PIC unit
+ * diberi tahu hasilnya setelah commit.
  */
 class ReviewRequestItem
 {
@@ -86,10 +88,32 @@ class ReviewRequestItem
 
         if ($isAccepted) {
             CopyAcceptedRequestItem::dispatch($item)->afterCommit();
+            $this->resolveEscalation($item, $reviewer);
             $this->completeWhenAllAccepted($documentRequest, $reviewer);
         }
 
         return $item;
+    }
+
+    /**
+     * A slot that was escalated to Dewan Pengawas is no longer a blocker once Diterima (UC-17).
+     */
+    private function resolveEscalation(RequestItem $item, User $reviewer): void
+    {
+        $escalation = $item->escalation()->where('status', EscalationStatus::Diteruskan)->lockForUpdate()->first();
+
+        if ($escalation === null) {
+            return;
+        }
+
+        $escalation->forceFill(['status' => EscalationStatus::Selesai, 'resolved_at' => now()])->save();
+
+        $this->auditLogger->record(AuditAction::RequestItemEscalationResolved, $item, [
+            'escalation_id' => $escalation->id,
+            'document_request_id' => $item->document_request_id,
+            'name' => $item->name,
+            'escalated_at' => $escalation->escalated_at->toIso8601String(),
+        ], $reviewer);
     }
 
     private function completeWhenAllAccepted(DocumentRequest $documentRequest, User $reviewer): void

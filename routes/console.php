@@ -19,3 +19,7 @@ Schedule::command('permintaan:periksa-salinan')->everyFifteenMinutes()->withoutO
 
 // Pengingat tenggat H-3 (3 hari kerja) dan hari-H ke PIC unit, setiap pagi waktu yayasan (US-18).
 Schedule::command('permintaan:kirim-pengingat')->dailyAt('07:00')->timezone(config('app.business_timezone'))->withoutOverlapping();
+
+// Slot yang belum Diterima setelah 10 hari kerja sesudah tenggat diteruskan ke Dewan Pengawas (US-18, F-21).
+// Perintahnya sendiri juga berhenti di hari libur nasional dan cuti bersama.
+Schedule::command('permintaan:eskalasi')->weekdays()->dailyAt('07:00')->timezone(config('app.business_timezone'))->withoutOverlapping();

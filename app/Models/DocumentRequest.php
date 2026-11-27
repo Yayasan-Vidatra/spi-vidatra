@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\DocumentRequestStatus;
+use App\Services\WorkingCalendar;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Database\Factories\DocumentRequestFactory;
@@ -19,6 +20,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable(['unit_id', 'due_date'])]
 class DocumentRequest extends Model
 {
+    /**
+     * Slot yang belum Diterima sekian hari kerja setelah tenggat diteruskan ke Dewan Pengawas (Piagam Pasal 17 ayat (2)).
+     */
+    public const int CharterEscalationWorkingDays = 10;
+
     /** @use HasFactory<DocumentRequestFactory> */
     use HasFactory;
 
@@ -86,6 +92,15 @@ class DocumentRequest extends Model
     public function dueAt(): CarbonImmutable
     {
         return CarbonImmutable::parse($this->due_date->toDateString(), config('app.business_timezone'))->endOfDay();
+    }
+
+    /**
+     * The last day of the Piagam period: the tenth working day after the due date. Slots not yet Diterima once
+     * this day has ended are escalated to Dewan Pengawas (F-21).
+     */
+    public function charterDeadline(WorkingCalendar $calendar): CarbonImmutable
+    {
+        return $calendar->addWorkingDays($this->due_date, self::CharterEscalationWorkingDays);
     }
 
     public function isPastDue(?CarbonInterface $now = null): bool
