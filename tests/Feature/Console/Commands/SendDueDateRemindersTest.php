@@ -25,16 +25,18 @@ class SendDueDateRemindersTest extends TestCase
     }
 
     /**
-     * An open request due on the date, with slots in the given statuses and one PIC for its unit.
+     * An open request due on the date, with slots in the given statuses and one PIC for its unit. By default it
+     * was created well before its H-3 date.
      *
      * @param  list<RequestItemStatus>  $itemStatuses
      * @return array{DocumentRequest, User}
      */
-    private function requestDueOn(string $dueDate, array $itemStatuses = [RequestItemStatus::Menunggu], ?Assignment $assignment = null): array
+    private function requestDueOn(string $dueDate, array $itemStatuses = [RequestItemStatus::Menunggu], ?Assignment $assignment = null, ?CarbonImmutable $createdAt = null): array
     {
         $documentRequest = DocumentRequest::factory()
             ->for($assignment ?? Assignment::factory()->create())
             ->create(['due_date' => $dueDate, 'sequence_number' => 2]);
+        $documentRequest->forceFill(['created_at' => $createdAt ?? CarbonImmutable::parse('2027-01-04 09:00', config('app.business_timezone'))])->save();
 
         foreach ($itemStatuses as $status) {
             RequestItem::factory()->for($documentRequest)->withStatus($status)->create();
@@ -94,15 +96,39 @@ class SendDueDateRemindersTest extends TestCase
         Notification::assertSentToTimes($pic, DocumentRequestDueSoon::class, 1);
     }
 
-    public function test_missed_h3_is_sent_late_while_the_deadline_has_not_arrived(): void
+    public function test_missed_h3_is_sent_late_for_a_request_created_before_its_h3_date(): void
     {
         Notification::fake();
-        [, $pic] = $this->requestDueOn('2027-04-12');
+        // Dibuat Selasa 6 April, sehari sebelum H-3 (Rabu 7 April); perintah baru jalan lagi Jumat 9 April.
+        [, $pic] = $this->requestDueOn('2027-04-12', createdAt: CarbonImmutable::parse('2027-04-06 15:00', config('app.business_timezone')));
         $this->travelToMorning('2027-04-09');
 
         $this->artisan('permintaan:kirim-pengingat')->assertSuccessful();
 
         Notification::assertSentTo($pic, DocumentRequestDueSoon::class);
+    }
+
+    public function test_request_created_on_or_after_its_h3_date_gets_no_h3_but_still_gets_the_due_today_reminder(): void
+    {
+        Notification::fake();
+        // H-3 untuk tenggat Senin 12 April adalah Rabu 7 April. 6 April 17:00 UTC sudah 7 April 01:00 WITA.
+        [$createdOnH3, $picOnH3] = $this->requestDueOn('2027-04-12', createdAt: CarbonImmutable::parse('2027-04-06 17:00', 'UTC'));
+        [$createdAfterH3, $picAfterH3] = $this->requestDueOn('2027-04-12', createdAt: CarbonImmutable::parse('2027-04-08 10:00', config('app.business_timezone')));
+
+        foreach (['2027-04-07', '2027-04-08', '2027-04-09'] as $morning) {
+            $this->travelToMorning($morning);
+            $this->artisan('permintaan:kirim-pengingat')->assertSuccessful();
+        }
+
+        Notification::assertNothingSent();
+        $this->assertNull($createdOnH3->fresh()->due_soon_reminded_at);
+        $this->assertNull($createdAfterH3->fresh()->due_soon_reminded_at);
+
+        $this->travelToMorning('2027-04-12');
+        $this->artisan('permintaan:kirim-pengingat')->assertSuccessful();
+
+        Notification::assertSentTo([$picOnH3, $picAfterH3], DocumentRequestDueToday::class);
+        Notification::assertNotSentTo([$picOnH3, $picAfterH3], DocumentRequestDueSoon::class);
     }
 
     public function test_due_today_reminder_is_sent_on_the_deadline_once_instead_of_h3(): void
