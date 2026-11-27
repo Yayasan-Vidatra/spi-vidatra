@@ -48,7 +48,9 @@ Aturan yang berlaku untuk semua langkah:
 - **US-15:** auditor membuat permintaan ke satu unit: daftar dokumen (nama, keterangan, format yang diterima), tenggat. Slot unggah per dokumen terbentuk di folder 02 Permintaan Dokumen.
 - **US-16:** PIC hanya melihat permintaan unitnya (H-08), mengunggah ke slot memakai alur unggah M3 (MIME, ukuran, antivirus, versi). Status slot menjadi Diunggah.
 - **US-17:** auditor menandai Diterima atau Perlu Perbaikan (catatan wajib). Unggahan ulang menjadi versi baru. Slot Diterima disalin ke 04 Bukti Unit dan terkunci untuk PIC.
-- **US-18:** status Terlambat dihitung dari tenggat; pengingat H-3 dan hari-H lewat scheduler. Surel dikirim di Langkah 5; di sini cukup event/notifikasi yang nanti dipakai surel, plus tampilan di dasbor sementara.
+- **US-18:** status Terlambat dihitung dari tenggat; pengingat H-3 (3 hari kerja) dan hari-H lewat scheduler. Surel dikirim di Langkah 5; di sini cukup event/notifikasi yang nanti dipakai surel, plus tampilan di dasbor sementara.
+  - Tambahan r2 (P5, F-21, KF-12, UC-17): slot yang belum Diterima 10 hari kerja setelah tenggat diteruskan ke Dewan Pengawas, tercatat di tabel escalations dan log, tampil di dasbor Dewan Pengawas sampai Diterima. Hari kerja = Senin–Jumat dikurangi tabel holidays (diisi HolidaySeeder sampai Pengaturan di US-29).
+  - Ubah tenggat dengan alasan wajib, untuk sementara oleh Auditor penugasan dan Dewan Pengawas. Kepala SPI (pemberitahuan eskalasi dan ubah tenggat) menyusul di Langkah 2b.
 - **Perlu diputuskan:** apakah satu unit boleh punya lebih dari satu PIC (rekomendasi: boleh).
 
 ## Langkah 3: Berbagi, persetujuan Rahasia, laporan baca saja (US-19 sampai US-21)
