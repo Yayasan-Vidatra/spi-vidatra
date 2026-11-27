@@ -32,6 +32,17 @@ class EnsureAccountHasAccessTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_logs_out_pic_unit_whose_unit_was_removed_after_login(): void
+    {
+        $user = User::factory()->withRole(RoleSlug::PicUnit)->acceptedConfidentiality()->create();
+        $user->unit()->dissociate()->save();
+
+        $response = $this->actingAs($user)->get(route('dasbor'));
+
+        $response->assertRedirect(route('akses.belum-diberi'));
+        $this->assertGuest();
+    }
+
     public function test_deactivated_super_admin_cannot_open_the_panel(): void
     {
         $user = User::factory()->withRole(RoleSlug::SuperAdmin)->withTwoFactor()->acceptedConfidentiality()->inactive()->create();

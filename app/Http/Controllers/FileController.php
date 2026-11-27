@@ -50,6 +50,7 @@ class FileController extends Controller
 
         $user = $request->user();
         $folder = $file->folder;
+        $file->loadMissing(File::EvidenceSourceRelations);
         $versions = $file->versions()->with(['uploader', 'restoredFrom'])->orderByDesc('version_number')->get();
         $currentVersion = $versions->firstWhere('id', $file->current_version_id);
 
@@ -63,6 +64,7 @@ class FileController extends Controller
                 'folder_url' => $this->folderFileList->folderUrl($folder),
                 'assignment_code' => $folder->assignment?->code,
                 'is_locked' => $folder->is_locked || $folder->isArchived(),
+                'provenance' => $file->evidenceSource?->evidenceProvenance(),
             ],
             'preview' => $currentVersion !== null && $user->can('preview', [$file, $currentVersion])
                 ? [

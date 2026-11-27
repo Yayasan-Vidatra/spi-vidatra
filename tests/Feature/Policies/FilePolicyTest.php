@@ -6,9 +6,12 @@ use App\Enums\Classification;
 use App\Enums\RoleSlug;
 use App\Enums\ScanStatus;
 use App\Models\Assignment;
+use App\Models\DocumentRequest;
 use App\Models\File;
 use App\Models\FileVersion;
 use App\Models\Folder;
+use App\Models\RequestItem;
+use App\Models\Unit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -33,6 +36,34 @@ class FilePolicyTest extends TestCase
     private function fileIn(Folder $folder, ScanStatus $scanStatus = ScanStatus::Bersih, Classification $classification = Classification::Internal): File
     {
         return File::factory()->for($folder)->withVersion($scanStatus)->create(['classification' => $classification])->fresh();
+    }
+
+    public function test_pic_downloads_only_the_slot_files_of_their_unit_including_rahasia_without_opening_h06(): void
+    {
+        $unit = Unit::factory()->create();
+        $pic = User::factory()->picOf($unit)->create();
+        $otherUnitPic = User::factory()->picOf(Unit::factory()->create())->create();
+        $documentRequest = DocumentRequest::factory()->create(['unit_id' => $unit->id]);
+        $slotFile = $this->fileIn($documentRequest->folder);
+        $confidentialSlotFile = $this->fileIn($documentRequest->folder, classification: Classification::Rahasia);
+        $pendingSlotFile = $this->fileIn($documentRequest->folder, ScanStatus::Menunggu);
+        foreach ([$slotFile, $confidentialSlotFile, $pendingSlotFile] as $file) {
+            RequestItem::factory()->for($documentRequest)->create(['file_id' => $file->id]);
+        }
+        $otherFileInTheSameFolder = $this->fileIn($documentRequest->folder);
+        $evidenceCopy = $this->fileIn(Folder::factory()->for($documentRequest->assignment)->create());
+        RequestItem::factory()->for($documentRequest)->create(['evidence_file_id' => $evidenceCopy->id]);
+
+        $this->assertTrue($pic->can('download', [$slotFile, $slotFile->currentVersion]));
+        $this->assertTrue($pic->can('preview', [$slotFile, $slotFile->currentVersion]));
+        $this->assertTrue($pic->can('download', [$confidentialSlotFile, $confidentialSlotFile->currentVersion]));
+        $this->assertFalse($pic->can('download', [$pendingSlotFile, $pendingSlotFile->currentVersion]));
+        $this->assertFalse($pic->can('download', [$otherFileInTheSameFolder, $otherFileInTheSameFolder->currentVersion]));
+        $this->assertFalse($pic->can('download', [$evidenceCopy, $evidenceCopy->currentVersion]));
+        $this->assertFalse($otherUnitPic->can('download', [$slotFile, $slotFile->currentVersion]));
+        foreach (['view', 'uploadVersion', 'changeLabel', 'delete'] as $ability) {
+            $this->assertFalse($pic->can($ability, $slotFile), "PIC seharusnya tidak bisa {$ability}.");
+        }
     }
 
     public function test_assigned_auditor_views_downloads_and_manages_an_internal_file(): void

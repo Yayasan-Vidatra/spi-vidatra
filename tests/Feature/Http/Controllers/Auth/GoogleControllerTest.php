@@ -95,6 +95,21 @@ class GoogleControllerTest extends TestCase
         ]);
     }
 
+    public function test_pic_unit_without_a_unit_sees_pending_access_page_without_being_logged_in(): void
+    {
+        User::factory()->withRole(RoleSlug::PicUnit)->create([
+            'email' => 'siti@vidatra.sch.id',
+            'google_id' => '109876543210',
+            'unit_id' => null,
+        ]);
+
+        $response = $this->loginWithGoogle($this->googleUser('siti@vidatra.sch.id'));
+
+        $response->assertRedirect(route('akses.belum-diberi'));
+        $response->assertInertiaFlash('email', 'siti@vidatra.sch.id');
+        $this->assertGuest();
+    }
+
     public function test_pending_access_page_renders_the_not_yet_granted_message(): void
     {
         $this->loginWithGoogle($this->googleUser('baru@vidatra.sch.id'));

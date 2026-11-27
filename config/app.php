@@ -68,6 +68,14 @@ return [
     'timezone' => 'UTC',
 
     /*
+    | Zona waktu kerja yayasan (WITA). Stempel waktu tetap disimpan dalam UTC; zona ini hanya dipakai untuk
+    | aturan berbasis tanggal kalender, misalnya tenggat permintaan dokumen yang berlaku sampai akhir hari
+    | dan jadwal pengingatnya (US-18).
+    */
+
+    'business_timezone' => 'Asia/Makassar',
+
+    /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------

@@ -6,6 +6,7 @@ use App\Enums\Classification;
 use App\Enums\RoleSlug;
 use App\Models\File;
 use App\Models\FileVersion;
+use App\Models\RequestItem;
 use App\Models\User;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Support\Facades\Gate;
@@ -35,11 +36,12 @@ class FilePolicy
 
     /**
      * Isi berkas baru bisa diunduh setelah versinya lolos pemindaian antivirus. Tetap boleh saat
-     * penugasan ditutup.
+     * penugasan ditutup. PIC Unit juga boleh mengunduh berkas slot unitnya (US-16), termasuk yang berlabel
+     * Rahasia karena itu dokumen unitnya sendiri (log deviasi), tanpa membuka H-06.
      */
     public function download(User $user, File $file, FileVersion $version): Response
     {
-        if ($version->file_id !== $file->id || ! $this->view($user, $file)) {
+        if ($version->file_id !== $file->id || ! ($this->view($user, $file) || $this->isSlotFileOfUsersUnit($user, $file))) {
             return Response::deny();
         }
 
@@ -145,6 +147,21 @@ class FilePolicy
     public function viewAccessHistory(User $user, File $file): bool
     {
         return $user->hasRole(RoleSlug::DewanPengawas) && $this->view($user, $file);
+    }
+
+    /**
+     * Hanya berkas slot itu sendiri; berkas lain di folder 02 dan salinan di 04 mengikuti aturan biasa.
+     */
+    private function isSlotFileOfUsersUnit(User $user, File $file): bool
+    {
+        if ($file->trashed() || ! $user->hasRole(RoleSlug::PicUnit) || $user->unit_id === null) {
+            return false;
+        }
+
+        return RequestItem::query()
+            ->where('file_id', $file->id)
+            ->whereRelation('documentRequest', 'unit_id', $user->unit_id)
+            ->exists();
     }
 
     private function canSee(User $user, File $file): bool

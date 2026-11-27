@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Enums\Classification;
+use App\Enums\FolderPurpose;
 use App\Models\Assignment;
 use App\Models\Folder;
 use App\Models\FolderTemplate;
@@ -51,6 +52,21 @@ class FolderFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'folder_template_id' => FolderTemplate::query()->orderBy('sort_order')->value('id'),
         ]);
+    }
+
+    /**
+     * The standard folder whose template has the given purpose, such as "02 Permintaan Dokumen".
+     */
+    public function forPurpose(FolderPurpose $purpose): static
+    {
+        return $this->state(function (array $attributes) use ($purpose): array {
+            $template = FolderTemplate::query()->where('purpose', $purpose)->sole();
+
+            return [
+                'folder_template_id' => $template->id,
+                'name' => $template->name,
+            ];
+        });
     }
 
     public function confidential(): static

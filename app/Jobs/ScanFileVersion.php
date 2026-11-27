@@ -3,8 +3,11 @@
 namespace App\Jobs;
 
 use App\Enums\AuditAction;
+use App\Enums\RequestItemStatus;
 use App\Enums\ScanStatus;
 use App\Models\FileVersion;
+use App\Models\RequestItem;
+use App\Notifications\RequestItemInfected;
 use App\Services\AuditLogger;
 use App\Services\FileVersionContent;
 use App\Services\Scanning\VirusScanner;
@@ -12,6 +15,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
@@ -77,7 +81,7 @@ class ScanFileVersion implements ShouldQueue
     {
         $disk = Storage::disk(config('berkas.disk'));
 
-        DB::transaction(function () use ($version, $signature, $auditLogger, $disk): void {
+        $returnedItem = DB::transaction(function () use ($version, $signature, $auditLogger, $disk): ?RequestItem {
             // Kunci baris agar lokasi simpan tidak sedang diganti job enkripsi ulang.
             $locked = FileVersion::query()->lockForUpdate()->findOrFail($version->id);
             $originalPath = $locked->storage_path;
@@ -98,11 +102,47 @@ class ScanFileVersion implements ShouldQueue
                     'version_id' => $locked->id,
                     'signature' => $signature,
                 ]);
+
+                return $this->returnInfectedSlot($locked, $auditLogger);
             } catch (Throwable $exception) {
                 $disk->move($quarantinePath, $originalPath);
 
                 throw $exception;
             }
         });
+
+        if ($returnedItem !== null) {
+            Notification::send($returnedItem->documentRequest->unit->picUsers, new RequestItemInfected($returnedItem));
+        }
+    }
+
+    /**
+     * Slot yang versi terkininya terinfeksi kembali ke Perlu Perbaikan dengan catatan sistem, terpisah dari
+     * catatan auditor (US-16). Versi lama yang sudah digantikan unggahan baru tidak mengubah slot.
+     */
+    private function returnInfectedSlot(FileVersion $version, AuditLogger $auditLogger): ?RequestItem
+    {
+        $item = RequestItem::query()->where('file_id', $version->file_id)->lockForUpdate()->first();
+
+        if ($item === null
+            || $item->status !== RequestItemStatus::Diunggah
+            || $item->file->current_version_id !== $version->id) {
+            return null;
+        }
+
+        $item->forceFill([
+            'status' => RequestItemStatus::PerluPerbaikan,
+            'system_note' => RequestItem::InfectedSystemNote,
+        ])->save();
+
+        $auditLogger->record(AuditAction::RequestItemInfected, $item, [
+            'document_request_id' => $item->document_request_id,
+            'name' => $item->name,
+            'version' => $version->version_number,
+            'version_id' => $version->id,
+            'note_source' => 'sistem',
+        ]);
+
+        return $item;
     }
 }

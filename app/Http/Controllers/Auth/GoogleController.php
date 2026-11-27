@@ -56,7 +56,8 @@ class GoogleController extends Controller
             return $this->rejectLogin('Akun Anda tidak aktif. Hubungi Admin IT Yayasan.');
         }
 
-        if ($user->role_id === null) {
+        // Tanpa peran, atau PIC Unit tanpa unit (US-16).
+        if (! $user->canSignIn()) {
             Inertia::flash('email', $user->email);
 
             return redirect()->route('akses.belum-diberi');

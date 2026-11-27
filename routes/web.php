@@ -6,17 +6,24 @@ use App\Http\Controllers\AssignmentMemberController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\GoogleController;
 use App\Http\Controllers\ConfidentialityStatementController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DocumentRequestController;
+use App\Http\Controllers\DocumentRequestDueDateController;
 use App\Http\Controllers\FileContentController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\FileVersionController;
 use App\Http\Controllers\FolderArchiveController;
 use App\Http\Controllers\FolderController;
 use App\Http\Controllers\GeneralFolderController;
+use App\Http\Controllers\NotificationReadController;
+use App\Http\Controllers\RequestItemReviewController;
+use App\Http\Controllers\RequestItemUploadController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\TrashController;
 use App\Http\Controllers\TwoFactorChallengeController;
 use App\Http\Controllers\TwoFactorRecoveryCodeController;
 use App\Http\Controllers\TwoFactorSetupController;
+use App\Http\Controllers\UnitDocumentRequestController;
 use App\Http\Middleware\EnsureAccountHasAccess;
 use App\Http\Middleware\EnsureConfidentialityStatementAccepted;
 use App\Http\Middleware\EnsureTwoFactorIsVerified;
@@ -61,7 +68,14 @@ Route::middleware(['auth', EnsureAccountHasAccess::class])->group(function () {
             ->name('kerahasiaan.store');
 
         Route::middleware(EnsureConfidentialityStatementAccepted::class)->group(function () {
-            Route::inertia('/dasbor', 'Dasbor')->name('dasbor');
+            Route::get('/dasbor', [DashboardController::class, 'show'])->name('dasbor');
+            Route::post('/notifikasi/dibaca', [NotificationReadController::class, 'storeAll'])->name('notifikasi.dibaca-semua');
+            Route::get('/notifikasi/{notification}/buka', [NotificationReadController::class, 'show'])
+                ->whereUuid('notification')
+                ->name('notifikasi.buka');
+            Route::post('/notifikasi/{notification}/dibaca', [NotificationReadController::class, 'store'])
+                ->whereUuid('notification')
+                ->name('notifikasi.dibaca');
 
             Route::get('/penugasan', [AssignmentController::class, 'index'])->name('penugasan.index');
             Route::get('/penugasan/buat', [AssignmentController::class, 'create'])->name('penugasan.create');
@@ -86,6 +100,34 @@ Route::middleware(['auth', EnsureAccountHasAccess::class])->group(function () {
                     Route::post('/folder', [FolderController::class, 'store'])->name('folder.store');
                     Route::patch('/folder/{folder}', [FolderController::class, 'update'])->name('folder.update');
                     Route::post('/folder/{folder}/arsip', [FolderArchiveController::class, 'store'])->name('folder.arsip.store');
+
+                    // H-07 Permintaan Dokumen (SPI); permintaan dari penugasan lain menghasilkan 404.
+                    Route::get('/permintaan', [DocumentRequestController::class, 'index'])->name('permintaan.index');
+                    Route::get('/permintaan/buat', [DocumentRequestController::class, 'create'])->name('permintaan.create');
+                    Route::post('/permintaan', [DocumentRequestController::class, 'store'])->name('permintaan.store');
+                    Route::get('/permintaan/{documentRequest}', [DocumentRequestController::class, 'show'])
+                        ->whereNumber('documentRequest')
+                        ->name('permintaan.show');
+                    Route::patch('/permintaan/{documentRequest}/tenggat', [DocumentRequestDueDateController::class, 'update'])
+                        ->whereNumber('documentRequest')
+                        ->name('permintaan.tenggat.update');
+                    Route::post('/permintaan/{documentRequest}/slot/{item}/periksa', [RequestItemReviewController::class, 'store'])
+                        ->whereNumber(['documentRequest', 'item'])
+                        ->name('permintaan.slot.periksa');
+                });
+
+            // H-08 Permintaan untuk Unit Saya (PIC Unit). Scoped binding: slot dari permintaan lain menghasilkan 404.
+            Route::get('/permintaan-unit', [UnitDocumentRequestController::class, 'index'])->name('permintaan-unit.index');
+            Route::prefix('permintaan-unit/{documentRequest}')
+                ->whereNumber('documentRequest')
+                ->name('permintaan-unit.')
+                ->scopeBindings()
+                ->group(function () {
+                    Route::get('/', [UnitDocumentRequestController::class, 'show'])->name('show');
+                    Route::post('/slot/{item}', [RequestItemUploadController::class, 'store'])
+                        ->whereNumber('item')
+                        ->middleware('throttle:berkas-unggah')
+                        ->name('slot.unggah');
                 });
 
             Route::get('/folder-umum', [GeneralFolderController::class, 'index'])->name('folder-umum.index');

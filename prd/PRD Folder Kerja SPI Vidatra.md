@@ -111,7 +111,7 @@ Kebutuhan ditulis sebagai user story dengan kriteria penerimaan yang bisa diuji.
 | US-15 | Sebagai Auditor, saya ingin meminta dokumen ke unit dengan tenggat | Pilih unit, isi daftar dokumen (nama, keterangan, format), tenggat; slot unggah per dokumen terbentuk; PIC unit menerima surel |
 | US-16 | Sebagai PIC Unit, saya ingin mengunggah dokumen yang diminta | PIC hanya melihat permintaan untuk unitnya; unggah langsung ke slot; status slot menjadi Diunggah; auditor diberi tahu |
 | US-17 | Sebagai Auditor, saya ingin menerima atau meminta perbaikan | Tandai Diterima atau Perlu Perbaikan dengan catatan wajib; unggahan ulang menjadi versi baru; slot Diterima disalin ke folder 04 Bukti Unit dan terkunci untuk PIC |
-| US-18 | Sebagai sistem, saya harus mengingatkan tenggat | Pengingat surel ke PIC pada H-3 dan saat tenggat; slot lewat tenggat berstatus Terlambat di dasbor SPI |
+| US-18 | Sebagai sistem, saya harus mengingatkan tenggat | Pengingat surel ke PIC pada H-3 dan saat tenggat; slot lewat tenggat berstatus Terlambat di dasbor SPI; slot yang belum Diterima 10 hari kerja setelah tenggat diteruskan ke Dewan Pengawas dan Kepala SPI diberi tahu (F-21, KF-12, UC-17 Rancangan r2) |
 
 ### M5 Berbagi dan laporan
 
@@ -218,8 +218,8 @@ Acuan: F, UC, dan nomor bagian dari Rancangan r0; R dari Daftar Revisi r1.
 | US-14 | F-11 | H-03 | Demo 2 | Belum mulai | Kotak cari di header (/cari) untuk Dewan Pengawas dan Auditor; disaring di query dengan aturan yang sama seperti FilePolicy. Kata kunci tidak dicatat di log |
 | US-15 | F-08, UC-06 | H-07 | Demo 2 | Belum mulai |  |
 | US-16 | F-08, UC-07 | H-08 | Demo 2 | Belum mulai |  |
-| US-17 | UC-08 | H-07 | Demo 2 | Belum mulai |  |
-| US-18 | F-10, KF-08 | H-03, H-07 | Demo 2 | Belum mulai |  |
+| US-17 | UC-08 | H-07 | Demo 2 | Belum mulai | Salinan di 04 Bukti Unit mengikuti label folder 04 dan dipindai ulang; asal-usulnya (nomor permintaan, PIC pengunggah, auditor penerima) tercatat di log penyalinan dan tampil di H-05/H-06. Tambahan yang disetujui: permintaan:periksa-salinan menjadwalkan ulang salinan tertahan (butuh cron, Langkah 6); hasil periksa ditolak bila PIC sudah mengunggah versi lebih baru; auditor tanpa akses Rahasia tidak bisa memeriksa slot berlabel Rahasia |
+| US-18 | F-10, KF-08; F-21, KF-12, UC-17 (r2) | H-03, H-07 | Demo 2 | Belum mulai | H-3 dihitung 3 hari kerja sebelum tenggat (Senin–Jumat dikurangi libur nasional dan cuti bersama), diputuskan 27 November 2026; H-3 tidak dikirim bila tenggat dibuat atau diubah pada atau setelah tanggal H-3-nya, hari-H tetap. Eskalasi: slot yang belum Diterima setelah hari kerja ke-10 sesudah tenggat diteruskan ke Dewan Pengawas sekali per slot (termasuk Diunggah, ditandai tertahan di SPI), tampil di dasbor Dewan Pengawas sampai Diterima; slot penugasan ditutup tidak dieskalasi. Ubah tenggat di H-07 dengan alasan wajib. Pengingat dan eskalasi lewat scheduler pukul 07:00 WITA (butuh cron, Langkah 6); notifikasi masih di basis data dan tampil di H-03 sementara, surel di US-30 |
 | US-19 | F-06, UC-09 | H-06 | Demo 2 | Belum mulai |  |
 | US-20 | UC-10, R1 | H-09 | Demo 2 | Belum mulai |  |
 | US-21 | UC-11, R7 | H-10 | Demo 2 | Belum mulai |  |
@@ -253,6 +253,10 @@ Setiap perbedaan dari Rancangan r0 dicatat di sini dan disetujui sebelum dikerja
 | 2026-11-23 | NF-08 | VPS dipakai bersama SIGAP, paket L untuk uji coba, upgrade ke XL bila perlu (R8) | Biaya awal lebih rendah; upgrade Rumahweb pro-rata tanpa migrasi data | Pak Randy |
 | 2026-11-23 | US-22 | Perintah bootstrap akun:tetapkan-peran untuk Super Admin dan Dewan Pengawas pertama, di luar alur persetujuan | Belum ada Dewan Pengawas untuk menyetujui saat sistem pertama dipasang; hanya bisa dijalankan sekali per peran lewat SSH | (menunggu persetujuan) |
 | 2026-11-23 | US-22 | DemoAccountSeeder menetapkan peran akun uji dari DEMO_ACCOUNTS di luar alur persetujuan, kecuali menetapkan atau mengubah peran super-admin; jalur sementara khusus non-produksi (hanya APP_ENV local/staging, menolak di production), setiap penetapan tercatat di audit_logs | Uji coba M2 butuh akun Auditor SPI sebelum alur persetujuan peran (US-22) selesai; dihapus setelah US-22 selesai | (menunggu persetujuan) |
+| 2026-11-27 | US-18 | Ubah tenggat permintaan untuk sementara oleh Auditor penugasan dan Dewan Pengawas; pengalihan ke Kepala SPI di Langkah 2b (keputusan 5) | Peran Kepala SPI belum ada sampai Langkah 2b | (menunggu persetujuan) |
+| 2026-11-27 | US-18 | Kepala SPI belum diberi tahu saat eskalasi (UC-17 langkah 2) dan belum melihat daftar eskalasi; titik ekstensi disiapkan untuk Langkah 2b | Peran Kepala SPI belum ada sampai Langkah 2b | (menunggu persetujuan) |
+| 2026-11-27 | US-18 | Daftar libur nasional dan cuti bersama diisi lewat HolidaySeeder (2026 dan 2027 sesuai SKB), belum dikelola di Pengaturan | Halaman Pengaturan dikerjakan di US-29 | (menunggu persetujuan) |
+| 2026-11-27 | US-18 | Pengingat H-3 tidak dikirim untuk tenggat yang dibuat atau diubah pada atau setelah tanggal H-3-nya; pengingat hari-H tetap dikirim | Notifikasi permintaan baru atau ubah tenggat sudah menjadi pemberitahuan pertama | (menunggu persetujuan) |
 
 ## 9. Asumsi dan Pertanyaan Terbuka
 

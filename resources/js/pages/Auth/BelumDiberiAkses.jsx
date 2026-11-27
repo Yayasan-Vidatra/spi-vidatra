@@ -13,10 +13,10 @@ export default function BelumDiberiAkses() {
                     {flash?.email ? (
                         <>
                             Akun <span className="font-medium text-gray-900">{flash.email}</span> sudah dikenali, tetapi belum memiliki peran
-                            di Folder Kerja SPI.
+                            di Folder Kerja SPI, atau belum ditetapkan unitnya bila berperan PIC Unit.
                         </>
                     ) : (
-                        'Akun Anda sudah dikenali, tetapi belum memiliki peran di Folder Kerja SPI.'
+                        'Akun Anda sudah dikenali, tetapi belum memiliki peran di Folder Kerja SPI, atau belum ditetapkan unitnya bila berperan PIC Unit.'
                     )}
                 </p>
                 <p className="mt-2 text-sm text-gray-600">Hubungi Admin IT Yayasan untuk meminta akses.</p>

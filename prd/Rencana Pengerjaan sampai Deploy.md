@@ -48,7 +48,9 @@ Aturan yang berlaku untuk semua langkah:
 - **US-15:** auditor membuat permintaan ke satu unit: daftar dokumen (nama, keterangan, format yang diterima), tenggat. Slot unggah per dokumen terbentuk di folder 02 Permintaan Dokumen.
 - **US-16:** PIC hanya melihat permintaan unitnya (H-08), mengunggah ke slot memakai alur unggah M3 (MIME, ukuran, antivirus, versi). Status slot menjadi Diunggah.
 - **US-17:** auditor menandai Diterima atau Perlu Perbaikan (catatan wajib). Unggahan ulang menjadi versi baru. Slot Diterima disalin ke 04 Bukti Unit dan terkunci untuk PIC.
-- **US-18:** status Terlambat dihitung dari tenggat; pengingat H-3 dan hari-H lewat scheduler. Surel dikirim di Langkah 5; di sini cukup event/notifikasi yang nanti dipakai surel, plus tampilan di dasbor sementara.
+- **US-18:** status Terlambat dihitung dari tenggat; pengingat H-3 (3 hari kerja) dan hari-H lewat scheduler. Surel dikirim di Langkah 5; di sini cukup event/notifikasi yang nanti dipakai surel, plus tampilan di dasbor sementara.
+  - Tambahan r2 (P5, F-21, KF-12, UC-17): slot yang belum Diterima 10 hari kerja setelah tenggat diteruskan ke Dewan Pengawas, tercatat di tabel escalations dan log, tampil di dasbor Dewan Pengawas sampai Diterima. Hari kerja = Senin–Jumat dikurangi tabel holidays (diisi HolidaySeeder sampai Pengaturan di US-29).
+  - Ubah tenggat dengan alasan wajib, untuk sementara oleh Auditor penugasan dan Dewan Pengawas. Kepala SPI (pemberitahuan eskalasi dan ubah tenggat) menyusul di Langkah 2b.
 - **Perlu diputuskan:** apakah satu unit boleh punya lebih dari satu PIC (rekomendasi: boleh).
 
 ## Langkah 3: Berbagi, persetujuan Rahasia, laporan baca saja (US-19 sampai US-21)
@@ -80,7 +82,7 @@ Setelah Langkah 3: **Demo 2** ke pimpinan (lokal atau staging).
 
 ## Langkah 6: Kesiapan rilis
 
-- **Keamanan:** Content-Security-Policy, HSTS, X-Frame-Options, Referrer-Policy lewat middleware; halaman galat 403/404/419/429/500 berbahasa Indonesia tanpa detail teknis; cek `APP_DEBUG=false` di produksi; `composer audit` dan `npm audit` bersih.
+- **Keamanan:** Content-Security-Policy, HSTS, X-Frame-Options, Referrer-Policy lewat middleware; halaman galat 403/404/419/429/500 berbahasa Indonesia tanpa detail teknis, mengikuti tampilan aplikasi (saat ini masih halaman bawaan Laravel, misalnya "This action is unauthorized.", temuan uji browser US-15); cek `APP_DEBUG=false` di produksi; `composer audit` dan `npm audit` bersih.
 - **Cadangan (NF-04):** cadangan harian basis data dan berkas, terenkripsi, ke luar VPS, retensi 30 hari; perintah uji pulihkan; kunci enkripsi berkas Rahasia tidak ikut cadangan. **Perlu diputuskan:** tujuan cadangan (rekomendasi: Google Drive Shared Drive yayasan lewat mekanisme yang sama dengan Langkah 4, atau object storage) dan apakah memakai paket (`spatie/laravel-backup`) atau skrip sendiri.
 - **CI:** GitHub Actions dengan service MySQL 8 menjalankan seluruh test, Pint (`--test`), dan `npm run build` di setiap PR.
 - **Skrip deploy:** folder `deploy/` berisi skrip pemasangan untuk Ubuntu 24.04 yang **berbagi server dengan SIGAP** (srv1.vidatra.sch.id): pengguna sistem `spi`, basis data dan pengguna MySQL sendiri, pool PHP-FPM sendiri, vhost Nginx `spi.vidatra.sch.id` dengan `client_max_body_size 64M`, Let's Encrypt, Supervisor untuk queue worker, cron untuk scheduler, `robots.txt` dan header noindex. Skrip tidak boleh mengubah konfigurasi SIGAP; bagian bersama (PHP, MySQL, Redis, ClamAV dengan StreamMaxLength 105M) hanya diperiksa, dan dipasang bila belum ada. Skrip pembaruan (pull, composer install --no-dev, migrate --force, build, `php artisan queue:restart` wajib di setiap deploy agar worker tidak menjalankan kode lama) terpisah dari skrip pemasangan.

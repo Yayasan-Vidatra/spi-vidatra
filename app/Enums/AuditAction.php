@@ -8,6 +8,7 @@ namespace App\Enums;
 enum AuditAction: string
 {
     case DemoRoleAssigned = 'akun.peran_demo_ditetapkan';
+    case DemoUnitAssigned = 'akun.unit_demo_ditetapkan';
     case AssignmentCreated = 'penugasan.dibuat';
     case AssignmentClosed = 'penugasan.ditutup';
     case AssignmentReopened = 'penugasan.dibuka_kembali';
@@ -33,6 +34,15 @@ enum AuditAction: string
     case FileDeleted = 'berkas.dihapus';
     case FileRestored = 'berkas.dipulihkan';
     case FilePurged = 'berkas.dihapus_permanen';
+    case DocumentRequestCreated = 'permintaan.dibuat';
+    case RequestItemUploaded = 'permintaan.slot_diunggah';
+    case RequestItemInfected = 'permintaan.slot_terinfeksi';
+    case RequestItemReviewed = 'permintaan.slot_diperiksa';
+    case RequestItemCopiedToEvidence = 'permintaan.slot_disalin_ke_bukti';
+    case DocumentRequestCompleted = 'permintaan.selesai';
+    case DocumentRequestDueDateChanged = 'permintaan.tenggat_diubah';
+    case RequestItemEscalated = 'permintaan.slot_dieskalasi';
+    case RequestItemEscalationResolved = 'permintaan.eskalasi_selesai';
 
     /**
      * Label aksi berkas untuk riwayat akses di H-06.

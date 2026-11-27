@@ -45,6 +45,7 @@ export default function FolderFiles({ folder, uploadRules }) {
                                         <Link href={`/berkas/${file.id}`} className="break-all font-medium underline">
                                             {file.name}
                                         </Link>
+                                        {file.provenance && <p className="mt-0.5 text-xs text-gray-600">{file.provenance}</p>}
                                     </td>
                                     <td className="py-2 pr-3">v{file.version_number}</td>
                                     <td className="py-2 pr-3 whitespace-nowrap">{formatBytes(file.size)}</td>

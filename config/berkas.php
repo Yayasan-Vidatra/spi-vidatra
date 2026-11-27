@@ -35,6 +35,25 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Format slot permintaan dokumen (US-15)
+    |--------------------------------------------------------------------------
+    |
+    | Kelompok format yang bisa dipilih auditor per dokumen. Kelompok yang
+    | ekstensinya tidak semuanya ada di allowed_extensions tidak ditawarkan.
+    |
+    */
+
+    'request_format_groups' => [
+        'pdf' => ['label' => 'PDF', 'extensions' => ['pdf']],
+        'word' => ['label' => 'Word', 'extensions' => ['docx']],
+        'excel' => ['label' => 'Excel', 'extensions' => ['xlsx']],
+        'powerpoint' => ['label' => 'PowerPoint', 'extensions' => ['pptx']],
+        'gambar' => ['label' => 'Gambar', 'extensions' => ['jpg', 'jpeg', 'png']],
+        'zip' => ['label' => 'ZIP', 'extensions' => ['zip']],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Tautan unduh (US-11, Rancangan 6.2)
     |--------------------------------------------------------------------------
     */

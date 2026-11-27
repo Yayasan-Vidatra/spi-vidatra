@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Enums\Classification;
+use App\Enums\FolderPurpose;
 use App\Models\FolderTemplate;
 use Illuminate\Database\Seeder;
 
@@ -18,17 +19,17 @@ class FolderTemplateSeeder extends Seeder
     public function run(): void
     {
         $templates = [
-            ['01 Perencanaan', 'Surat tugas, program kerja audit'],
-            ['02 Permintaan Dokumen', 'Slot unggah dari unit'],
-            ['03 Kertas Kerja', 'KKA, catatan auditor'],
-            ['04 Bukti Unit', 'Dokumen yang sudah diterima'],
-            ['05 Temuan dan Tanggapan', null],
-            ['06 Laporan', 'Draf dan laporan final'],
-            ['07 Tindak Lanjut', 'Pemantauan rekomendasi'],
+            ['01 Perencanaan', 'Surat tugas, program kerja audit', null],
+            ['02 Permintaan Dokumen', 'Slot unggah dari unit', FolderPurpose::PermintaanDokumen],
+            ['03 Kertas Kerja', 'KKA, catatan auditor', null],
+            ['04 Bukti Unit', 'Dokumen yang sudah diterima', FolderPurpose::BuktiUnit],
+            ['05 Temuan dan Tanggapan', null, null],
+            ['06 Laporan', 'Draf dan laporan final', null],
+            ['07 Tindak Lanjut', 'Pemantauan rekomendasi', null],
         ];
 
-        foreach ($templates as $index => [$name, $description]) {
-            FolderTemplate::query()->updateOrCreate(
+        foreach ($templates as $index => [$name, $description, $purpose]) {
+            $template = FolderTemplate::query()->updateOrCreate(
                 ['sort_order' => $index + 1],
                 [
                     'name' => $name,
@@ -36,6 +37,9 @@ class FolderTemplateSeeder extends Seeder
                     'default_classification' => Classification::Internal,
                 ],
             );
+
+            // Penanda dipakai modul permintaan dokumen; tidak termasuk kolom yang bisa diubah di Pengaturan.
+            $template->forceFill(['purpose' => $purpose])->save();
         }
     }
 }

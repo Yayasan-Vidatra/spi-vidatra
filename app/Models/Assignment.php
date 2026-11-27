@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\AssignmentStatus;
+use App\Enums\FolderPurpose;
 use Database\Factories\AssignmentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -68,6 +69,26 @@ class Assignment extends Model
     public function folders(): HasMany
     {
         return $this->hasMany(Folder::class);
+    }
+
+    /**
+     * @return HasMany<DocumentRequest, $this>
+     */
+    public function documentRequests(): HasMany
+    {
+        return $this->hasMany(DocumentRequest::class);
+    }
+
+    /**
+     * The top-level standard folder created from the template with the given purpose, such as
+     * "02 Permintaan Dokumen".
+     */
+    public function standardFolder(FolderPurpose $purpose): ?Folder
+    {
+        return $this->folders()
+            ->whereNull('parent_id')
+            ->whereRelation('template', 'purpose', $purpose)
+            ->first();
     }
 
     public function isClosed(): bool
