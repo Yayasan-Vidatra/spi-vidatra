@@ -151,6 +151,20 @@ class RequestItem extends Model
     }
 
     /**
+     * Origin of the copy in "04 Bukti Unit" for H-05 and H-06, e.g. "Disalin dari Permintaan 02 · diunggah
+     * <PIC> · diterima <auditor>". Needs documentRequest, acceptedVersion.uploader, and reviewer loaded.
+     */
+    public function evidenceProvenance(): string
+    {
+        return sprintf(
+            'Disalin dari Permintaan %02d · diunggah %s · diterima %s',
+            $this->documentRequest->sequence_number,
+            $this->acceptedVersion->uploader->name,
+            $this->reviewer->name,
+        );
+    }
+
+    /**
      * Diterima, but the copy job has not placed the accepted version in "04 Bukti Unit" yet ("salinan ke 04 tertunda").
      */
     public function isEvidenceCopyPending(): bool

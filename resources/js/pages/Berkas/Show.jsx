@@ -183,6 +183,7 @@ export default function Show({ file, preview, versions, allowedLabels, accessHis
                     {file.folder_path}
                     {file.is_locked && ' · Terkunci, baca saja'}
                 </p>
+                {file.provenance && <p className="mt-1 text-sm text-gray-600">{file.provenance}</p>}
                 {versions.some((version) => version.encryption_status) && (
                     <p role="status" className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
                         Label berkas sudah berubah. Isi yang tersimpan sedang{' '}

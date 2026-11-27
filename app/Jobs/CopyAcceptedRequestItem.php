@@ -24,7 +24,8 @@ use Throwable;
  * bernama "<kode unit> - <nama dokumen>.<ext>" dengan akhiran " (2)", " (3)" bila nama itu sudah dipakai.
  * Label salinan mengikuti folder 04, isinya dienkripsi bila perlu, lalu dipindai ulang lewat alur biasa.
  * Aman dijalankan berulang: slot yang sudah punya salinan tidak disalin lagi. Selama belum berhasil, slot
- * tetap Diterima dengan keterangan "salinan ke 04 tertunda".
+ * tetap Diterima dengan keterangan "salinan ke 04 tertunda". Log penyalinan mencatat asal-usulnya: nomor
+ * permintaan, PIC pengunggah versi yang diterima, dan auditor yang menerima, beserta nama mereka saat itu.
  */
 class CopyAcceptedRequestItem implements ShouldQueue
 {
@@ -44,7 +45,7 @@ class CopyAcceptedRequestItem implements ShouldQueue
     public function handle(FileVersionContent $content, AddFileVersion $addFileVersion, AuditLogger $auditLogger, FileCipher $cipher): void
     {
         $item = RequestItem::query()
-            ->with(['documentRequest.assignment', 'documentRequest.unit', 'file', 'acceptedVersion', 'reviewer'])
+            ->with(['documentRequest.assignment', 'documentRequest.unit', 'file', 'acceptedVersion.uploader', 'reviewer'])
             ->find($this->item->id);
 
         if ($item === null || ! $item->isEvidenceCopyPending()) {
@@ -148,6 +149,11 @@ class CopyAcceptedRequestItem implements ShouldQueue
             'evidence_file_id' => $file->id,
             'evidence_name' => $name,
             'folder_id' => $folder->id,
+            'document_request_sequence_number' => $item->documentRequest->sequence_number,
+            'source_uploaded_by' => $item->acceptedVersion->uploaded_by,
+            'source_uploader_name' => $item->acceptedVersion->uploader->name,
+            'accepted_by' => $item->reviewed_by,
+            'accepted_by_name' => $item->reviewer->name,
         ]);
 
         return true;

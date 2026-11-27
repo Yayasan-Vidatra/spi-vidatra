@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Str;
@@ -22,6 +23,17 @@ use Illuminate\Support\Str;
  */
 class File extends Model
 {
+    /**
+     * Relasi yang dimuat bersama berkas agar asal-usul salinan di "04 Bukti Unit" bisa ditampilkan tanpa N+1.
+     *
+     * @var list<string>
+     */
+    public const array EvidenceSourceRelations = [
+        'evidenceSource.documentRequest:id,sequence_number',
+        'evidenceSource.acceptedVersion.uploader:id,name',
+        'evidenceSource.reviewer:id,name',
+    ];
+
     /** @use HasFactory<FileFactory> */
     use HasFactory;
 
@@ -62,6 +74,16 @@ class File extends Model
     public function versions(): HasMany
     {
         return $this->hasMany(FileVersion::class);
+    }
+
+    /**
+     * Slot permintaan yang versi diterimanya disalin menjadi berkas ini di "04 Bukti Unit" (US-17).
+     *
+     * @return HasOne<RequestItem, $this>
+     */
+    public function evidenceSource(): HasOne
+    {
+        return $this->hasOne(RequestItem::class, 'evidence_file_id');
     }
 
     /**

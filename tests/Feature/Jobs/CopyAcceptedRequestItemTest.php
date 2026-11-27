@@ -109,8 +109,41 @@ class CopyAcceptedRequestItemTest extends TestCase
             'evidence_file_id' => $copy->id,
             'evidence_name' => 'SMP - Laporan kas Oktober.pdf',
             'folder_id' => $this->evidenceFolder->id,
+            'document_request_sequence_number' => $item->documentRequest->sequence_number,
+            'source_uploaded_by' => $source->uploaded_by,
+            'source_uploader_name' => $source->uploader->name,
+            'accepted_by' => $this->reviewer->id,
+            'accepted_by_name' => $this->reviewer->name,
         ]);
         $this->assertNull($log->user_id);
+    }
+
+    public function test_copy_shows_its_origin_on_the_folder_list_and_the_file_detail(): void
+    {
+        $auditor = User::factory()->withRole(RoleSlug::AuditorSpi)->withTwoFactor()->acceptedConfidentiality()->create();
+        AssignmentMember::factory()->for($this->assignment)->create(['user_id' => $auditor->id]);
+        $pic = User::factory()->create(['name' => 'adminyayasan3']);
+        $this->reviewer->forceFill(['name' => 'adminyayasan1'])->save();
+        $item = $this->acceptedSlot();
+        $item->documentRequest->forceFill(['sequence_number' => 2])->save();
+        $item->acceptedVersion->forceFill(['uploaded_by' => $pic->id])->save();
+
+        CopyAcceptedRequestItem::dispatchSync($item);
+
+        $copy = $item->fresh()->evidenceFile;
+        $origin = 'Disalin dari Permintaan 02 · diunggah adminyayasan3 · diterima adminyayasan1';
+        $this->actingAsVerified($auditor)
+            ->get(route('penugasan.show', ['assignment' => $this->assignment, 'folder' => $this->evidenceFolder->id]))
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('selectedFolder.files.0.id', $copy->id)
+                ->where('selectedFolder.files.0.provenance', $origin)
+            );
+        $this->actingAsVerified($auditor)
+            ->get(route('berkas.show', $copy))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('file.provenance', $origin));
+        $this->actingAsVerified($auditor)
+            ->get(route('berkas.show', $item->file))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('file.provenance', null));
     }
 
     public function test_accepting_through_h07_places_the_copy_in_bukti_unit_and_shows_it_on_the_page(): void

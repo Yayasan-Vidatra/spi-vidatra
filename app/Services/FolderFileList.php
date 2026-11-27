@@ -21,7 +21,7 @@ class FolderFileList
     {
         $files = File::query()
             ->where('folder_id', $folder->id)
-            ->with(['currentVersion.uploader', 'versions:id,file_id,is_encrypted'])
+            ->with(['currentVersion.uploader', 'versions:id,file_id,is_encrypted', ...File::EvidenceSourceRelations])
             ->orderBy('original_name')
             ->get()
             ->each(fn (File $file) => $file->setRelation('folder', $folder))
@@ -43,6 +43,7 @@ class FolderFileList
                 'scan_status_label' => $file->currentVersion->scan_status->label(),
                 'uploader' => $file->currentVersion->uploader->name,
                 'uploaded_at' => $file->currentVersion->created_at->toIso8601String(),
+                'provenance' => $file->evidenceSource?->evidenceProvenance(),
                 'encryption_status' => $file->encryptionSyncStatus()?->value,
                 'encryption_status_label' => $file->encryptionSyncStatus()?->label(),
             ])->values()->all(),
