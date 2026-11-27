@@ -5,7 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 
 /**
- * Data baku yang dibutuhkan aplikasi dan test: peran, unit, templat folder, dan folder umum.
+ * Data baku yang dibutuhkan aplikasi dan test: peran, unit, templat folder, folder umum, dan hari libur.
  */
 class ReferenceDataSeeder extends Seeder
 {
@@ -19,6 +19,7 @@ class ReferenceDataSeeder extends Seeder
             UnitSeeder::class,
             FolderTemplateSeeder::class,
             FolderSeeder::class,
+            HolidaySeeder::class,
         ]);
     }
 }
