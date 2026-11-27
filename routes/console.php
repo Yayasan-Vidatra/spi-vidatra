@@ -16,3 +16,6 @@ Schedule::command('berkas:periksa-enkripsi')->everyFiveMinutes()->withoutOverlap
 
 // Salinan slot Diterima ke 04 Bukti Unit yang tertahan lebih dari 60 menit dijadwalkan ulang (US-17).
 Schedule::command('permintaan:periksa-salinan')->everyFifteenMinutes()->withoutOverlapping();
+
+// Pengingat tenggat H-3 (3 hari kerja) dan hari-H ke PIC unit, setiap pagi waktu yayasan (US-18).
+Schedule::command('permintaan:kirim-pengingat')->dailyAt('07:00')->timezone(config('app.business_timezone'))->withoutOverlapping();

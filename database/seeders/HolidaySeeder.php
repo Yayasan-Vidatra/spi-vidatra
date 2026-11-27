@@ -11,7 +11,8 @@ use Illuminate\Database\Seeder;
  *
  * - 2027: SKB Menteri Agama, Menteri Ketenagakerjaan, dan Menteri PANRB Nomor 1205, 3, 2 Tahun 2026, ditetapkan
  *   15 September 2026 (sumber: kemenkopmk.go.id).
- * - 2026: hanya sisa tahun (Desember), dari pengetahuan pengembang. PERLU DICEK terhadap SKB 2026 resmi.
+ * - 2026: hanya sisa tahun (Desember); SKB Menteri Agama, Menteri Ketenagakerjaan, dan Menteri PANRB Nomor 1497, 2,
+ *   5 Tahun 2025.
  *
  * Tanggal yang jatuh di akhir pekan tetap dicatat agar daftarnya utuh. Seeder hanya menambah atau memperbarui
  * per tanggal; tanggal lain di tabel tidak dihapus.
@@ -37,7 +38,7 @@ class HolidaySeeder extends Seeder
         $cuti = HolidayType::CutiBersama;
 
         return [
-            // 2026, sisa tahun. PERLU DICEK terhadap SKB 2026 resmi.
+            // 2026, sisa tahun, SKB Nomor 1497, 2, 5 Tahun 2025.
             ['2026-12-24', $cuti, 'Cuti bersama Kelahiran Yesus Kristus'],
             ['2026-12-25', $nasional, 'Kelahiran Yesus Kristus'],
 

@@ -219,7 +219,7 @@ Acuan: F, UC, dan nomor bagian dari Rancangan r0; R dari Daftar Revisi r1.
 | US-15 | F-08, UC-06 | H-07 | Demo 2 | Belum mulai |  |
 | US-16 | F-08, UC-07 | H-08 | Demo 2 | Belum mulai |  |
 | US-17 | UC-08 | H-07 | Demo 2 | Belum mulai |  |
-| US-18 | F-10, KF-08 | H-03, H-07 | Demo 2 | Belum mulai |  |
+| US-18 | F-10, KF-08 | H-03, H-07 | Demo 2 | Belum mulai | H-3 dihitung 3 hari kerja sebelum tenggat (Senin–Jumat dikurangi libur nasional dan cuti bersama), diputuskan 27 November 2026 |
 | US-19 | F-06, UC-09 | H-06 | Demo 2 | Belum mulai |  |
 | US-20 | UC-10, R1 | H-09 | Demo 2 | Belum mulai |  |
 | US-21 | UC-11, R7 | H-10 | Demo 2 | Belum mulai |  |
