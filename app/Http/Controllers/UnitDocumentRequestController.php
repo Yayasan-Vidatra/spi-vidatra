@@ -37,6 +37,7 @@ class UnitDocumentRequestController extends Controller
 
                 return [
                     'id' => $documentRequest->id,
+                    'number' => $documentRequest->sequence_number,
                     'due_date' => $documentRequest->due_date->toDateString(),
                     'is_past_due' => $documentRequest->isPastDue(),
                     'status_label' => $documentRequest->status->label(),
@@ -59,6 +60,7 @@ class UnitDocumentRequestController extends Controller
         return Inertia::render('PermintaanUnit/Show', [
             'documentRequest' => [
                 'id' => $documentRequest->id,
+                'number' => $documentRequest->sequence_number,
                 'unit' => $documentRequest->unit->name,
                 'due_date' => $documentRequest->due_date->toDateString(),
                 'is_past_due' => $documentRequest->isPastDue(),

@@ -55,7 +55,7 @@ class DashboardControllerTest extends TestCase
             ->has('notifications', 1)
             ->where('notifications.0.message', 'Permintaan dokumen baru dari SPI: 1 dokumen, tenggat 30 April 2027.')
             ->where('notifications.0.is_read', false)
-            ->where('notifications.0.url', route('permintaan-unit.show', $documentRequest))
+            ->where('notifications.0.url', route('notifikasi.buka', $pic->notifications()->sole()->id))
             ->where('auth.user.unread_notification_count', 1)
             ->where('overdueItems', null)
             ->where('escalations', null)
@@ -124,8 +124,53 @@ class DashboardControllerTest extends TestCase
         $overseer->notify(new RequestItemsEscalated($item->documentRequest, collect([$item]), CarbonImmutable::parse('2027-04-19')));
 
         $this->actingAsVerified($overseer)->get(route('dasbor'))->assertInertia(fn (AssertableInertia $page) => $page
-            ->where('notifications.0.url', route('penugasan.permintaan.show', [$item->documentRequest->assignment_id, $item->documentRequest]))
+            ->where('notifications.0.url', route('notifikasi.buka', $overseer->notifications()->sole()->id))
         );
+    }
+
+    public function test_opening_a_notification_marks_it_read_and_goes_to_its_page(): void
+    {
+        $pic = User::factory()->picOf($this->unit('SMP'))->withTwoFactor()->acceptedConfidentiality()->create();
+        $overseer = $this->userWithRole(RoleSlug::DewanPengawas);
+        $documentRequest = $this->slot(Assignment::factory()->create(), '2027-04-30')->documentRequest;
+        $pic->notify(new DocumentRequestReceived($documentRequest));
+        $overseer->notify(new DocumentRequestReceived($documentRequest));
+
+        $this->actingAsVerified($pic)
+            ->get(route('notifikasi.buka', $pic->notifications()->sole()->id))
+            ->assertRedirect(route('permintaan-unit.show', $documentRequest));
+        $this->actingAsVerified($overseer)
+            ->get(route('notifikasi.buka', $overseer->notifications()->sole()->id))
+            ->assertRedirect(route('penugasan.permintaan.show', [$documentRequest->assignment_id, $documentRequest]));
+
+        $this->assertSame(0, $pic->unreadNotifications()->count());
+        $this->assertSame(0, $overseer->unreadNotifications()->count());
+    }
+
+    public function test_opening_a_notification_whose_page_is_no_longer_accessible_goes_back_to_the_dashboard(): void
+    {
+        $pic = User::factory()->picOf($this->unit('SMP'))->withTwoFactor()->acceptedConfidentiality()->create();
+        $documentRequest = $this->slot(Assignment::factory()->create(), '2027-04-30')->documentRequest;
+        $pic->notify(new DocumentRequestReceived($documentRequest));
+        $pic->forceFill(['unit_id' => $this->unit('SD')->id])->save();
+
+        $this->actingAsVerified($pic)
+            ->get(route('notifikasi.buka', $pic->notifications()->sole()->id))
+            ->assertRedirect(route('dasbor'));
+
+        $this->assertNotNull($pic->notifications()->sole()->read_at);
+    }
+
+    public function test_notification_of_another_user_cannot_be_opened(): void
+    {
+        $owner = $this->userWithRole(RoleSlug::AuditorSpi);
+        $owner->notify(new DocumentRequestReceived($this->slot(Assignment::factory()->create(), '2027-04-30')->documentRequest));
+
+        $this->actingAsVerified($this->userWithRole(RoleSlug::AuditorSpi))
+            ->get(route('notifikasi.buka', $owner->notifications()->sole()->id))
+            ->assertNotFound();
+
+        $this->assertNull($owner->notifications()->sole()->read_at);
     }
 
     public function test_user_marks_own_notifications_read_one_or_all(): void

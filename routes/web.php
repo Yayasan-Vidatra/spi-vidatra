@@ -70,6 +70,9 @@ Route::middleware(['auth', EnsureAccountHasAccess::class])->group(function () {
         Route::middleware(EnsureConfidentialityStatementAccepted::class)->group(function () {
             Route::get('/dasbor', [DashboardController::class, 'show'])->name('dasbor');
             Route::post('/notifikasi/dibaca', [NotificationReadController::class, 'storeAll'])->name('notifikasi.dibaca-semua');
+            Route::get('/notifikasi/{notification}/buka', [NotificationReadController::class, 'show'])
+                ->whereUuid('notification')
+                ->name('notifikasi.buka');
             Route::post('/notifikasi/{notification}/dibaca', [NotificationReadController::class, 'store'])
                 ->whereUuid('notification')
                 ->name('notifikasi.dibaca');

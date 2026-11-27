@@ -2,6 +2,7 @@ import { Form, Head, Link } from '@inertiajs/react';
 import { formatDateTime } from '../../components/fileFormat';
 import RequestItemStatusBadge from '../../components/RequestItemStatusBadge';
 import ScanStatusBadge from '../../components/ScanStatusBadge';
+import { requestLabel } from '../../components/requestNumber';
 import AppLayout from '../../layouts/AppLayout';
 
 function SlotUpload({ documentRequestId, item, maxSizeMb }) {
@@ -45,16 +46,16 @@ function SlotUpload({ documentRequestId, item, maxSizeMb }) {
 export default function Show({ documentRequest, items, maxSizeMb }) {
     return (
         <AppLayout>
-            <Head title={`Permintaan #${documentRequest.id}`} />
+            <Head title={requestLabel(documentRequest.number)} />
             <Link href="/permintaan-unit" className="text-sm text-gray-600 underline">
                 Kembali ke daftar permintaan
             </Link>
 
-            <h1 className="mt-4 text-2xl font-semibold">Permintaan #{documentRequest.id}</h1>
+            <h1 className="mt-4 text-2xl font-semibold">{requestLabel(documentRequest.number)}</h1>
             <p className="mt-1 text-sm text-gray-600">
                 {documentRequest.unit} · Dari {documentRequest.creator} · Dibuat {documentRequest.created_at} · Tenggat {documentRequest.due_date}{' '}
                 pukul 23.59 WITA
-                {documentRequest.is_past_due && <span className="ml-1 font-medium text-red-700">(sudah lewat)</span>}
+                {documentRequest.is_past_due && <>{' '}<span className="font-medium text-red-700">(sudah lewat)</span></>}
             </p>
 
             <ul className="mt-6 space-y-4">

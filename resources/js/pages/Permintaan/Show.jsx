@@ -4,6 +4,7 @@ import DueDateWarning from '../../components/DueDateWarning';
 import { formatDateTime } from '../../components/fileFormat';
 import RequestItemStatusBadge from '../../components/RequestItemStatusBadge';
 import ScanStatusBadge from '../../components/ScanStatusBadge';
+import { requestLabel } from '../../components/requestNumber';
 import AppLayout from '../../layouts/AppLayout';
 
 /**
@@ -133,17 +134,17 @@ function DueDateForm({ assignmentId, documentRequest, today, holidays, maxReason
 export default function Show({ assignment, documentRequest, items, maxNoteLength, maxReasonLength, today, holidays }) {
     return (
         <AppLayout>
-            <Head title={`Permintaan ${documentRequest.number} · ${assignment.code}`} />
+            <Head title={`${requestLabel(documentRequest.number)} · ${assignment.code}`} />
             <Link href={`/penugasan/${assignment.id}/permintaan`} className="text-sm text-gray-600 underline">
                 Kembali ke daftar permintaan
             </Link>
 
             <h1 className="mt-4 text-2xl font-semibold">
-                Permintaan {String(documentRequest.number).padStart(2, '0')} · {documentRequest.unit}
+                {requestLabel(documentRequest.number)} · {documentRequest.unit}
             </h1>
             <p className="mt-1 text-sm text-gray-600">
                 {assignment.code} · Tenggat {documentRequest.due_date}
-                {documentRequest.is_past_due && <span className="ml-1 font-medium text-red-700">(sudah lewat)</span>} · Dibuat oleh{' '}
+                {documentRequest.is_past_due && <>{' '}<span className="font-medium text-red-700">(sudah lewat)</span></>} · Dibuat oleh{' '}
                 {documentRequest.creator} · {documentRequest.status_label}
                 {documentRequest.due_date_changed_at && ` · Tenggat diubah ${formatDateTime(documentRequest.due_date_changed_at)}`}
             </p>

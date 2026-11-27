@@ -9,10 +9,10 @@ use App\Enums\EscalationType;
 use App\Enums\RequestItemStatus;
 use App\Enums\RoleSlug;
 use App\Models\Assignment;
-use App\Models\DocumentRequest;
 use App\Models\Escalation;
 use App\Models\RequestItem;
 use App\Models\User;
+use App\Services\NotificationLinks;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -31,6 +31,8 @@ class DashboardController extends Controller
 
     public const int ListLimit = 50;
 
+    public function __construct(private NotificationLinks $notificationLinks) {}
+
     public function show(Request $request): Response
     {
         $user = $request->user();
@@ -44,35 +46,23 @@ class DashboardController extends Controller
     }
 
     /**
-     * Latest notifications, each linked to the request page this user may open.
+     * Latest notifications. A notification with a page the user may open links through the open route, which
+     * marks it read before going there.
      *
      * @return list<array{id: string, message: string, created_at: string, is_read: bool, url: string|null}>
      */
     private function notifications(User $user): array
     {
         $notifications = $user->notifications()->latest()->limit(self::NotificationLimit)->get();
-        $documentRequests = DocumentRequest::query()
-            ->with('assignment')
-            ->findMany($notifications->pluck('data.document_request_id')->filter()->unique())
-            ->keyBy('id');
+        $targets = $this->notificationLinks->targets($user, $notifications);
 
         return $notifications->map(fn (DatabaseNotification $notification): array => [
             'id' => $notification->id,
             'message' => $notification->data['message'] ?? '',
             'created_at' => $notification->created_at->toIso8601String(),
             'is_read' => $notification->read_at !== null,
-            'url' => $this->requestUrl($user, $documentRequests->get($notification->data['document_request_id'] ?? null)),
+            'url' => isset($targets[$notification->id]) ? route('notifikasi.buka', $notification->id) : null,
         ])->values()->all();
-    }
-
-    private function requestUrl(User $user, ?DocumentRequest $documentRequest): ?string
-    {
-        return match (true) {
-            $documentRequest === null => null,
-            $user->can('view', $documentRequest) => route('penugasan.permintaan.show', [$documentRequest->assignment_id, $documentRequest]),
-            $user->can('viewForUnit', $documentRequest) => route('permintaan-unit.show', $documentRequest),
-            default => null,
-        };
     }
 
     /**

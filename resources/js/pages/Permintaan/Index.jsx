@@ -1,4 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
+import { requestLabel } from '../../components/requestNumber';
 import AppLayout from '../../layouts/AppLayout';
 
 /**
@@ -46,7 +47,7 @@ export default function Index({ assignment, documentRequests, can }) {
                                             href={`/penugasan/${assignment.id}/permintaan/${documentRequest.id}`}
                                             className="font-medium underline"
                                         >
-                                            Permintaan {String(documentRequest.number).padStart(2, '0')}
+                                            {requestLabel(documentRequest.number)}
                                         </Link>
                                     </td>
                                     <td className="px-4 py-2">{documentRequest.unit}</td>

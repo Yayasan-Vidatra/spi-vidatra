@@ -35,7 +35,7 @@ class UnitDocumentRequestControllerTest extends TestCase
     public function test_pic_sees_only_requests_for_their_unit(): void
     {
         $pic = $this->pic();
-        $ownRequest = DocumentRequest::factory()->create(['unit_id' => $this->unit('SMP')->id]);
+        $ownRequest = DocumentRequest::factory()->create(['unit_id' => $this->unit('SMP')->id, 'sequence_number' => 3]);
         RequestItem::factory()->for($ownRequest)->create();
         DocumentRequest::factory()->create(['unit_id' => $this->unit('SD')->id]);
 
@@ -46,6 +46,7 @@ class UnitDocumentRequestControllerTest extends TestCase
             ->where('unit', 'SMP YPVDP')
             ->has('documentRequests', 1)
             ->where('documentRequests.0.id', $ownRequest->id)
+            ->where('documentRequests.0.number', 3)
             ->where('documentRequests.0.pending_count', 1)
             ->where('auth.can.viewUnitRequests', true)
         );
@@ -61,6 +62,7 @@ class UnitDocumentRequestControllerTest extends TestCase
 
         $response->assertInertia(fn (AssertableInertia $page) => $page
             ->component('PermintaanUnit/Show')
+            ->where('documentRequest.number', $documentRequest->sequence_number)
             ->missing('assignment')
             ->missing('documentRequest.assignment_code')
         );

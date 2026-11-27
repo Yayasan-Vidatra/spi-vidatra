@@ -1,4 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
+import { requestLabel } from '../../components/requestNumber';
 import AppLayout from '../../layouts/AppLayout';
 
 /**
@@ -19,11 +20,11 @@ export default function Index({ unit, documentRequests }) {
                         <li key={documentRequest.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
                             <div>
                                 <Link href={`/permintaan-unit/${documentRequest.id}`} className="font-medium underline">
-                                    Permintaan #{documentRequest.id}
+                                    {requestLabel(documentRequest.number)}
                                 </Link>
                                 <p className="mt-1 text-sm text-gray-600">
                                     Dibuat {documentRequest.created_at} · Tenggat {documentRequest.due_date}
-                                    {documentRequest.is_past_due && <span className="ml-1 font-medium text-red-700">(sudah lewat)</span>}
+                                    {documentRequest.is_past_due && <>{' '}<span className="font-medium text-red-700">(sudah lewat)</span></>}
                                 </p>
                             </div>
                             <div className="flex flex-wrap items-center gap-2 text-sm">

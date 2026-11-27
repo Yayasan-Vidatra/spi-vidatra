@@ -1,8 +1,7 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import { formatDateTime } from '../components/fileFormat';
+import { requestLabel } from '../components/requestNumber';
 import AppLayout from '../layouts/AppLayout';
-
-const requestNumber = (number) => String(number).padStart(2, '0');
 
 function ListFooter({ total, shown }) {
     return total > shown ? <p className="mt-2 text-xs text-gray-500">Menampilkan {shown} dari {total}.</p> : null;
@@ -90,7 +89,7 @@ function Escalations({ escalations }) {
                                         </Link>
                                     </td>
                                     <td className="py-2 pr-3">
-                                        {escalation.assignment_code} · Permintaan {requestNumber(escalation.request_number)} · {escalation.unit}
+                                        {escalation.assignment_code} · {requestLabel(escalation.request_number)} · {escalation.unit}
                                     </td>
                                     <td className="py-2 pr-3">
                                         {escalation.status_label}, <span className="text-red-700">{escalation.hold_label}</span>
@@ -139,7 +138,7 @@ function OverdueItems({ overdueItems }) {
                                         </Link>
                                     </td>
                                     <td className="py-2 pr-3">
-                                        {item.assignment_code} · Permintaan {requestNumber(item.request_number)} · {item.unit}
+                                        {item.assignment_code} · {requestLabel(item.request_number)} · {item.unit}
                                     </td>
                                     <td className="py-2 pr-3">
                                         <span className="text-red-700">Terlambat</span> · {item.status_label}
